@@ -6,13 +6,46 @@ Personal bookmark categorization and search tool. Import Chrome bookmarks, categ
 
 ## Tech Stack
 
-- **Framework**: Next.js 14+ (App Router)
-- **Styling**: Tailwind CSS + shadcn/ui (dark mode only)
+- **Framework**: Next.js 16 (App Router)
+- **Styling**: Tailwind CSS v4 + shadcn/ui (dark mode only)
 - **Database**: Supabase (Postgres + pgvector for future semantic search)
 - **Tweet Embeds**: react-tweet (no API key needed)
 - **Link Previews**: Open Graph metadata fetching for non-tweets
 - **Deployment**: Vercel
 - **Target**: Desktop-first, mobile-friendly
+
+---
+
+## Infrastructure (Phase 0 Complete)
+
+### URLs
+- **Production**: https://bookmarks-app-psi-self.vercel.app
+- **GitHub**: https://github.com/AlexBoudreaux/bookmarks-app
+- **Supabase Dashboard**: https://supabase.com/dashboard/project/sypyaakbmczqptfoetud
+
+### Supabase Project
+- **Project Name**: supabase-bookmarks
+- **Project Ref**: sypyaakbmczqptfoetud
+- **Region**: (auto-selected by Vercel integration)
+
+### What's Configured
+- Next.js 16 with TypeScript, Tailwind v4, ESLint, App Router, src directory
+- Supabase integration via Vercel (auto-injects env vars)
+- shadcn/ui initialized (slate theme, CSS variables)
+- Database schema deployed (bookmarks, categories, settings, bookmark_categories)
+- Full-text search index on bookmarks
+- Supabase CLI linked for migrations (`supabase/migrations/`)
+
+### Installed Packages
+- `@supabase/supabase-js` (database client)
+- `react-tweet` (tweet embeds)
+- shadcn/ui dependencies (class-variance-authority, clsx, tailwind-merge, etc.)
+
+### Files Created
+- `src/lib/supabase.ts` (Supabase client)
+- `src/lib/utils.ts` (shadcn cn() helper)
+- `supabase/migrations/001_initial_schema.sql` (database schema)
+- `components.json` (shadcn config)
 
 ---
 
