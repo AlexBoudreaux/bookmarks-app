@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { BrowseContent } from '@/components/browse/browse-content'
+import { ExportButton } from '@/components/browse/export-button'
 
 export default async function BrowsePage() {
   // Fetch categorized bookmarks (not keepers, not skipped)
@@ -40,6 +41,7 @@ export default async function BrowsePage() {
             </h1>
           </div>
           <div className="flex items-center gap-3">
+            <ExportButton />
             <Link
               href="/categories"
               className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors"

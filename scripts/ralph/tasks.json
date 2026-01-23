@@ -423,7 +423,7 @@
       ],
       "priority": 51,
       "dependsOn": ["EXP-001", "BRW-001"],
-      "done": false
+      "done": true
     },
     {
       "id": "MGT-001",

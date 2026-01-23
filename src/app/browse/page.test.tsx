@@ -20,6 +20,11 @@ vi.mock('@/components/browse/browse-content', () => ({
   ),
 }))
 
+// Mock the ExportButton client component
+vi.mock('@/components/browse/export-button', () => ({
+  ExportButton: () => <button data-testid="export-button">Export Keepers</button>,
+}))
+
 // Mock Supabase with chainable builder
 const createMockBuilder = (tableName: string) => {
   const mockData: Record<string, any[]> = {
@@ -116,5 +121,11 @@ describe('BrowsePage', () => {
     // Check for dark theme gradient background
     const outerDiv = container.firstChild as HTMLElement
     expect(outerDiv.className).toContain('bg-')
+  })
+
+  it('has export button in header', async () => {
+    render(await BrowsePage())
+
+    expect(screen.getByTestId('export-button')).toBeInTheDocument()
   })
 })

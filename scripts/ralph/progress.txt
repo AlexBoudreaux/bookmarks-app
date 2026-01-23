@@ -829,3 +829,26 @@ Started: 2026-01-22
 - escapeHtml should handle &, <, >, ", and ' to prevent malformed HTML
 
 ---
+
+## 2026-01-23 - EXP-002
+- Implemented export download button in browse page header
+- Created GET /api/bookmarks/export route that fetches keeper bookmarks and returns Chrome HTML
+- Created ExportButton client component with loading state, file download trigger
+- Integrated button into browse page header next to "Manage Categories" link
+- Button triggers blob download with Content-Disposition header for bookmarks.html filename
+- All 288 tests passing, build succeeds
+
+**Files changed:**
+- src/app/api/bookmarks/export/route.ts (created)
+- src/app/api/bookmarks/export/route.test.ts (created)
+- src/components/browse/export-button.tsx (created)
+- src/components/browse/export-button.test.tsx (created)
+- src/app/browse/page.tsx (updated to include ExportButton)
+- src/app/browse/page.test.tsx (updated with ExportButton mock and test)
+
+**Learnings:**
+- File download via blob: create objectURL, set on anchor element with download attribute, trigger click, revoke URL
+- Content-Disposition header with attachment; filename="..." triggers download instead of navigation
+- Use Response() directly for non-JSON responses instead of NextResponse.json()
+
+---
