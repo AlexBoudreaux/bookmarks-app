@@ -58,6 +58,28 @@ vi.mock('./link-card', () => ({
   ),
 }))
 
+// Mock NotesField
+vi.mock('./notes-field', () => ({
+  NotesField: ({
+    bookmarkId,
+    initialNotes,
+    isVisible,
+    onClose,
+  }: {
+    bookmarkId: string
+    initialNotes: string | null
+    isVisible: boolean
+    onClose: () => void
+  }) => (
+    isVisible ? (
+      <div data-testid="notes-field" data-bookmark-id={bookmarkId}>
+        <span data-testid="notes-content">{initialNotes ?? ''}</span>
+        <button data-testid="close-notes" onClick={onClose}>Close</button>
+      </div>
+    ) : null
+  ),
+}))
+
 describe('CategorizeWrapper - Navigation', () => {
   const mockCategories = [
     { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
@@ -495,6 +517,137 @@ describe('CategorizeWrapper - Navigation', () => {
       await waitFor(() => {
         expect(screen.getByText(/all bookmarks categorized/i)).toBeInTheDocument()
       })
+    })
+  })
+
+  describe('Notes field (N key)', () => {
+    it('shows notes field when N key is pressed', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+        />
+      )
+
+      // Notes field should not be visible initially
+      expect(screen.queryByTestId('notes-field')).not.toBeInTheDocument()
+
+      // Press N key
+      await user.keyboard('n')
+
+      // Notes field should now be visible
+      await waitFor(() => {
+        expect(screen.getByTestId('notes-field')).toBeInTheDocument()
+      })
+    })
+
+    it('hides notes field when N key is pressed again', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+        />
+      )
+
+      // Press N key to show
+      await user.keyboard('n')
+      await waitFor(() => {
+        expect(screen.getByTestId('notes-field')).toBeInTheDocument()
+      })
+
+      // Press N key again to hide
+      await user.keyboard('n')
+      await waitFor(() => {
+        expect(screen.queryByTestId('notes-field')).not.toBeInTheDocument()
+      })
+    })
+
+    it('passes correct bookmark id to notes field', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+        />
+      )
+
+      // Press N key
+      await user.keyboard('n')
+
+      // Notes field should have correct bookmark id
+      await waitFor(() => {
+        expect(screen.getByTestId('notes-field')).toHaveAttribute('data-bookmark-id', 'b1')
+      })
+    })
+
+    it('hides notes field when navigating to next bookmark', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+        />
+      )
+
+      // Press N key to show notes
+      await user.keyboard('n')
+      await waitFor(() => {
+        expect(screen.getByTestId('notes-field')).toBeInTheDocument()
+      })
+
+      // Select category and navigate
+      await user.click(screen.getByTestId('select-category'))
+      await user.keyboard('{ArrowRight}')
+
+      // Notes field should be hidden for new bookmark
+      await waitFor(() => {
+        expect(screen.queryByTestId('notes-field')).not.toBeInTheDocument()
+      })
+    })
+
+    it('hides notes field when onClose is called', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+        />
+      )
+
+      // Press N key to show notes
+      await user.keyboard('n')
+      await waitFor(() => {
+        expect(screen.getByTestId('notes-field')).toBeInTheDocument()
+      })
+
+      // Click close button (simulates Escape in real component)
+      await user.click(screen.getByTestId('close-notes'))
+
+      // Notes field should be hidden
+      await waitFor(() => {
+        expect(screen.queryByTestId('notes-field')).not.toBeInTheDocument()
+      })
+    })
+
+    it('shows notes hint in UI', () => {
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+        />
+      )
+
+      // Should show N key hint
+      expect(screen.getByText('N')).toBeInTheDocument()
+      expect(screen.getByText(/notes/i)).toBeInTheDocument()
     })
   })
 })

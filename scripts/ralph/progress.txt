@@ -504,3 +504,36 @@ Started: 2026-01-22
 - RPC failure logged but doesn't fail request since categorization succeeded
 
 ---
+
+## 2026-01-23 - CAT-009
+- Implemented notes field for bookmarks in categorize flow
+- Created POST /api/bookmarks/notes route to save notes to Supabase
+- Created NotesField component with auto-save on blur and Escape to close
+- Integrated NotesField into CategorizeWrapper with N key toggle
+- Notes field shows when N is pressed, hides on Escape or when navigating between bookmarks
+- Auto-saves notes on blur if content changed (debounced via change detection)
+- All 140 tests passing, build passes with no errors
+
+**Files changed:**
+- src/app/api/bookmarks/notes/route.ts (created)
+- src/app/api/bookmarks/notes/route.test.ts (created)
+- src/components/categorize/notes-field.tsx (created)
+- src/components/categorize/notes-field.test.tsx (created)
+- src/components/categorize/categorize-wrapper.tsx (updated with notes integration)
+- src/components/categorize/categorize-wrapper.test.tsx (updated with notes tests)
+
+**Learnings:**
+- NotesField uses controlled state with initial value sync when bookmark changes
+- Auto-save pattern: track lastSavedNotes separately from current notes to detect changes
+- useRef for textarea focus on visibility change
+- Keyboard events in textarea are handled locally (Escape), while N key is handled in parent
+- Mock pattern for components that control visibility: render null when not visible
+
+**Design decisions:**
+- Notes field appears below the bookmark preview card
+- Keyboard hint "Press N to add notes" always visible
+- Escape closes notes field and saves changes
+- Notes auto-save on blur (no manual save button needed)
+- Notes visibility resets when navigating between bookmarks
+
+---

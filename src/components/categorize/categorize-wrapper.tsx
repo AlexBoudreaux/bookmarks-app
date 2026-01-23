@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { CategoryPicker } from './category-picker'
 import { TweetPreview } from './tweet-preview'
 import { LinkCard } from './link-card'
+import { NotesField } from './notes-field'
 import { Database } from '@/types/database'
 
 type Category = Database['public']['Tables']['categories']['Row']
@@ -34,6 +35,7 @@ export function CategorizeWrapper({
   const [isShaking, setIsShaking] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [isSkipFlashing, setIsSkipFlashing] = useState(false)
+  const [isNotesVisible, setIsNotesVisible] = useState(false)
 
   const currentBookmark = bookmarks[currentIndex]
   const totalCount = bookmarks.length
@@ -81,8 +83,9 @@ export function CategorizeWrapper({
       return
     }
 
-    // Clear selected pairs for next bookmark
+    // Clear selected pairs and hide notes for next bookmark
     setSelectedPairs([])
+    setIsNotesVisible(false)
     const newIndex = currentIndex + 1
     setCurrentIndex(newIndex)
     onIndexChange?.(newIndex)
@@ -93,12 +96,17 @@ export function CategorizeWrapper({
       return
     }
 
-    // Clear selected pairs when going back
+    // Clear selected pairs and hide notes when going back
     setSelectedPairs([])
+    setIsNotesVisible(false)
     const newIndex = currentIndex - 1
     setCurrentIndex(newIndex)
     onIndexChange?.(newIndex)
   }, [isAtStart, currentIndex, onIndexChange])
+
+  const toggleNotes = useCallback(() => {
+    setIsNotesVisible(prev => !prev)
+  }, [])
 
   const handleSkip = useCallback(async () => {
     if (!currentBookmark) return
@@ -137,7 +145,7 @@ export function CategorizeWrapper({
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle if typing in an input
+      // Don't handle if typing in an input (except N key toggle)
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return
       }
@@ -151,12 +159,15 @@ export function CategorizeWrapper({
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault()
         handleSkip()
+      } else if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault()
+        toggleNotes()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [moveToNext, moveToPrevious, handleSkip])
+  }, [moveToNext, moveToPrevious, handleSkip, toggleNotes])
 
   // Show empty state
   if (totalCount === 0) {
@@ -216,6 +227,23 @@ export function CategorizeWrapper({
             ) : null}
           </div>
         </div>
+
+        {/* Notes hint */}
+        <div className="flex items-center justify-center mt-3 text-xs text-zinc-500">
+          <span>Press</span>
+          <kbd className="mx-1.5 px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400">N</kbd>
+          <span>to add notes</span>
+        </div>
+
+        {/* Notes field */}
+        {currentBookmark && (
+          <NotesField
+            bookmarkId={currentBookmark.id}
+            initialNotes={currentBookmark.notes}
+            isVisible={isNotesVisible}
+            onClose={() => setIsNotesVisible(false)}
+          />
+        )}
       </div>
 
       {/* Category picker */}
