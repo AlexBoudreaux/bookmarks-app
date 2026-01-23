@@ -16,6 +16,9 @@ Started: 2026-01-22
 - Boundary detection: Use `detectBoundary()` from `@/lib/detect-boundary` to split keepers vs to-categorize
 - Tweet detection: Use regex `/(?:twitter\.com|x\.com)\/\w+\/status\/\d+/`
 - happy-dom quirk: Nested DL tags are children of DT elements, not siblings
+- API routes: Create in `src/app/api/` with route.ts files exporting named HTTP method functions
+- Domain extraction: Use `extractDomain()` from `@/lib/extract-domain` to normalize URLs
+- Date handling in API routes: Accept both Date objects and ISO strings (JSON serialization converts Dates to strings)
 
 ## Key Files
 
@@ -193,5 +196,36 @@ Started: 2026-01-22
 - Large, readable numbers with supporting text beneath
 - Nested breakdown showing tweet vs non-tweet counts with bullet points
 - Consistent dark theme with primary color accents
+
+---
+
+## 2026-01-23 - IMP-005
+- Implemented API route to save imported bookmarks to Supabase
+- Created domain extraction utility in `src/lib/extract-domain.ts`
+- Created POST /api/bookmarks/import route with upsert logic
+- Added comprehensive test coverage (domain extraction + API route)
+- All 51 tests passing, build passes with no errors
+
+**Files changed:**
+- `src/lib/extract-domain.ts` (created)
+- `src/lib/extract-domain.test.ts` (created)
+- `src/app/api/bookmarks/import/route.ts` (created)
+- `src/app/api/bookmarks/import/route.test.ts` (created)
+
+**Learnings:**
+- Vitest mocking requires defining mocks INSIDE vi.mock() factory, not as external variables
+- Import route module AFTER setting up mocks using top-level await: `const { POST } = await import('./route')`
+- JSON serialization converts Date objects to ISO strings, so API routes must handle both Date and string types
+- Supabase upsert with `onConflict: 'url'` handles duplicate URLs gracefully (insert or update)
+- URL constructor handles missing protocols by throwing error, so add `https://` prefix when missing
+- Domain extraction: Use URL.hostname to get domain, remove 'www.' prefix for consistency
+- Test mocks should return data matching expected counts (e.g., 2 bookmarks = return array of 2 items)
+
+**API Route Design:**
+- POST /api/bookmarks/import accepts array of ImportBookmark objects
+- Transforms to database format with extracted domain, keeper flags, categorization status
+- Uses upsert to handle duplicates (updates existing, inserts new)
+- Returns success status and count of imported bookmarks
+- Handles errors with appropriate status codes (400 for bad request, 500 for server errors)
 
 ---
