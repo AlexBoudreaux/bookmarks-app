@@ -285,7 +285,7 @@
       ],
       "priority": 30,
       "dependsOn": ["CAT-008"],
-      "done": false
+      "done": true
     },
     {
       "id": "E2E-001",

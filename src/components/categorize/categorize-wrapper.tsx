@@ -50,6 +50,19 @@ export function CategorizeWrapper({
     setSelectedPairs(pairs)
   }, [])
 
+  // Save position to settings table
+  const savePosition = useCallback(async (index: number) => {
+    try {
+      await fetch('/api/settings/position', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ index }),
+      })
+    } catch (error) {
+      console.error('Failed to save position:', error)
+    }
+  }, [])
+
   const moveToNext = useCallback(async () => {
     if (selectedPairs.length === 0) {
       // Shake animation when no category selected
@@ -78,8 +91,9 @@ export function CategorizeWrapper({
     }
 
     if (isAtEnd) {
-      // Show completion state
+      // Show completion state and reset position to 0
       setIsComplete(true)
+      savePosition(0)
       return
     }
 
@@ -89,7 +103,8 @@ export function CategorizeWrapper({
     const newIndex = currentIndex + 1
     setCurrentIndex(newIndex)
     onIndexChange?.(newIndex)
-  }, [selectedPairs, currentBookmark, isAtEnd, currentIndex, onIndexChange])
+    savePosition(newIndex)
+  }, [selectedPairs, currentBookmark, isAtEnd, currentIndex, onIndexChange, savePosition])
 
   const moveToPrevious = useCallback(() => {
     if (isAtStart) {
@@ -102,7 +117,8 @@ export function CategorizeWrapper({
     const newIndex = currentIndex - 1
     setCurrentIndex(newIndex)
     onIndexChange?.(newIndex)
-  }, [isAtStart, currentIndex, onIndexChange])
+    savePosition(newIndex)
+  }, [isAtStart, currentIndex, onIndexChange, savePosition])
 
   const toggleNotes = useCallback(() => {
     setIsNotesVisible(prev => !prev)
@@ -135,12 +151,14 @@ export function CategorizeWrapper({
     // Move to next bookmark or show completion
     if (isAtEnd) {
       setIsComplete(true)
+      savePosition(0)
     } else {
       const newIndex = currentIndex + 1
       setCurrentIndex(newIndex)
       onIndexChange?.(newIndex)
+      savePosition(newIndex)
     }
-  }, [currentBookmark, onSkip, isAtEnd, currentIndex, onIndexChange])
+  }, [currentBookmark, onSkip, isAtEnd, currentIndex, onIndexChange, savePosition])
 
   // Handle keyboard navigation
   useEffect(() => {

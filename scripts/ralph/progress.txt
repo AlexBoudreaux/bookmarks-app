@@ -574,3 +574,36 @@ Started: 2026-01-22
 - Modal clears state when opened (fresh start each time)
 
 ---
+
+## 2026-01-23 - CAT-011
+- Implemented progress persistence for categorize flow
+- Created GET/POST /api/settings/position routes to load/save position from settings table
+- Server component (page.tsx) loads saved position on initial render
+- CategorizeWrapper saves position after each navigation (forward, backward, skip)
+- Position resets to 0 when all bookmarks are completed
+- Saved position is clamped to valid range if bookmarks were removed
+- All 174 tests passing, build passes with no errors
+
+**Files changed:**
+- src/app/api/settings/position/route.ts (created)
+- src/app/api/settings/position/route.test.ts (created)
+- src/app/categorize/page.tsx (updated with position loading)
+- src/app/categorize/page.test.tsx (updated with position tests)
+- src/components/categorize/categorize-wrapper.tsx (updated with position saving)
+- src/components/categorize/categorize-wrapper.test.tsx (updated with position tests)
+
+**Learnings:**
+- Settings table uses key/value (JSONB) pattern for flexible storage
+- Supabase upsert with onConflict handles both insert and update cases
+- Error code PGRST116 from Supabase means "row not found" and should return default value
+- Server component can fetch saved position and pass as initialIndex to client component
+- Position should be clamped to valid range in case bookmarks were deleted between sessions
+
+**Design decisions:**
+- Position saved after each navigation, not just on completion
+- Position resets to 0 when completion screen shows (ready for next import)
+- Settings key: categorize_position, value: { index: N }
+- Position saving is fire-and-forget (non-blocking) to keep UI responsive
+- Position clamped to max valid index if saved position exceeds bookmark count
+
+---

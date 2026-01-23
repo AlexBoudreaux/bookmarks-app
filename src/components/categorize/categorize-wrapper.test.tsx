@@ -650,4 +650,125 @@ describe('CategorizeWrapper - Navigation', () => {
       expect(screen.getByText(/notes/i)).toBeInTheDocument()
     })
   })
+
+  describe('Position persistence', () => {
+    it('saves position when navigating forward', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+        />
+      )
+
+      // Select a category
+      await user.click(screen.getByTestId('select-category'))
+
+      // Press right arrow
+      await user.keyboard('{ArrowRight}')
+
+      // Should call position API with new index
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/settings/position', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ index: 1 }),
+        })
+      })
+    })
+
+    it('saves position when navigating backward', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={1}
+        />
+      )
+
+      // Press left arrow
+      await user.keyboard('{ArrowLeft}')
+
+      // Should call position API with new index
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/settings/position', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ index: 0 }),
+        })
+      })
+    })
+
+    it('saves position when skipping', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+        />
+      )
+
+      // Press Delete key to skip
+      await user.keyboard('{Delete}')
+
+      // Should call position API with new index
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/settings/position', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ index: 1 }),
+        })
+      })
+    })
+
+    it('resets position to 0 when reaching completion', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={2} // Last bookmark
+        />
+      )
+
+      // Select category and move forward
+      await user.click(screen.getByTestId('select-category'))
+      await user.keyboard('{ArrowRight}')
+
+      // Should reset position to 0
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/settings/position', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ index: 0 }),
+        })
+      })
+    })
+
+    it('resets position to 0 when skipping last bookmark', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={2} // Last bookmark
+        />
+      )
+
+      // Press Delete to skip last bookmark
+      await user.keyboard('{Delete}')
+
+      // Should reset position to 0
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/settings/position', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ index: 0 }),
+        })
+      })
+    })
+  })
 })

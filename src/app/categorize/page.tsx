@@ -1,6 +1,10 @@
 import { supabase } from '@/lib/supabase'
 import { CategorizeWrapper } from '@/components/categorize/categorize-wrapper'
 
+interface PositionValue {
+  index: number
+}
+
 export default async function CategorizePage() {
   // Fetch uncategorized bookmarks with full data
   const { data: bookmarks, error: bookmarksError } = await supabase
@@ -17,7 +21,18 @@ export default async function CategorizePage() {
     .select('*')
     .order('usage_count', { ascending: false })
 
+  // Fetch saved position from settings
+  const { data: positionData } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'categorize_position')
+    .single()
+
+  const savedPosition = (positionData?.value as PositionValue | null)?.index ?? 0
   const totalCount = bookmarks?.length || 0
+
+  // Ensure saved position doesn't exceed bookmark count
+  const initialIndex = Math.min(savedPosition, Math.max(0, totalCount - 1))
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
@@ -51,7 +66,7 @@ export default async function CategorizePage() {
           <CategorizeWrapper
             categories={categories || []}
             bookmarks={bookmarks || []}
-            initialIndex={0}
+            initialIndex={initialIndex}
           />
         </div>
       </main>

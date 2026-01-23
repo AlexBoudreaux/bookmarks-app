@@ -25,12 +25,19 @@ vi.mock('@/components/categorize/categorize-wrapper', () => ({
   ),
 }))
 
+// Track saved position value for tests
+let mockSavedPosition: { index: number } | null = null
+
 // Mock Supabase - needs to return a chainable builder
 const createMockBuilder = (tableName: string) => {
   const builder: any = {
     select: vi.fn(() => builder),
     eq: vi.fn(() => builder),
     is: vi.fn(() => builder),
+    single: vi.fn(() => ({
+      data: tableName === 'settings' && mockSavedPosition ? { value: mockSavedPosition } : null,
+      error: tableName === 'settings' && !mockSavedPosition ? { code: 'PGRST116' } : null,
+    })),
     order: vi.fn(() => ({
       data: tableName === 'categories' ? [
         { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
@@ -68,6 +75,7 @@ vi.mock('next/navigation', () => ({
 describe('CategorizePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSavedPosition = null // Reset saved position for each test
   })
 
   it('renders page header', async () => {
@@ -91,10 +99,27 @@ describe('CategorizePage', () => {
     expect(screen.getByTestId('category-count')).toHaveTextContent('3')
   })
 
-  it('passes initialIndex of 0 to CategorizeWrapper', async () => {
+  it('passes initialIndex of 0 to CategorizeWrapper when no position saved', async () => {
+    mockSavedPosition = null
     render(await CategorizePage())
 
     expect(screen.getByTestId('initial-index')).toHaveTextContent('0')
+  })
+
+  it('passes saved position as initialIndex to CategorizeWrapper', async () => {
+    mockSavedPosition = { index: 1 }
+    render(await CategorizePage())
+
+    expect(screen.getByTestId('initial-index')).toHaveTextContent('1')
+  })
+
+  it('clamps saved position to valid range', async () => {
+    // Saved position is 10 but only 2 bookmarks exist
+    mockSavedPosition = { index: 10 }
+    render(await CategorizePage())
+
+    // Should be clamped to max valid index (1)
+    expect(screen.getByTestId('initial-index')).toHaveTextContent('1')
   })
 
   it('has correct layout structure with main element', async () => {
