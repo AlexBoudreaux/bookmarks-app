@@ -13,6 +13,7 @@ Started: 2026-01-22
 - Testing: Vitest for unit tests (`src/**/*.test.ts`), Playwright for E2E (`e2e/**/*.spec.ts`)
 - Test imports: Use `@/` path alias in tests (configured in vitest.config.ts)
 - Chrome bookmarks: Parse using `parseBookmarksHtml()` from `@/lib/parse-bookmarks`
+- Boundary detection: Use `detectBoundary()` from `@/lib/detect-boundary` to split keepers vs to-categorize
 - Tweet detection: Use regex `/(?:twitter\.com|x\.com)\/\w+\/status\/\d+/`
 - happy-dom quirk: Nested DL tags are children of DT elements, not siblings
 
@@ -99,5 +100,26 @@ Started: 2026-01-22
 - The `<p>` tags in bookmark HTML are parsed as separate elements by happy-dom
 - Tweet detection regex: `/(?:twitter\.com|x\.com)\/\w+\/status\/\d+/`
 - Folder paths built by maintaining a stack that grows/shrinks as we enter/exit DL elements
+
+---
+
+## 2026-01-22 - IMP-002
+- Implemented boundary detection logic in `src/lib/detect-boundary.ts`
+- Created comprehensive test suite with 8 test cases in `src/lib/detect-boundary.test.ts`
+- Function finds last occurrence of byebyepaywall.com URL in Tools folder
+- Returns keeper count (bookmarks before boundary) and toCategorizeCount (bookmarks after)
+- Case-insensitive folder matching for "Tools"
+- Handles nested folder paths correctly (e.g., "Bookmarks Bar/Work/Tools")
+- All tests pass, build passes with no type errors
+
+**Files changed:**
+- `src/lib/detect-boundary.ts` (created)
+- `src/lib/detect-boundary.test.ts` (created)
+
+**Learnings:**
+- Boundary detection searches backward (from end) to find LAST occurrence of target URL in Tools folder
+- Folder name matching requires exact folder part match, not substring (prevents false matches)
+- BoundaryResult interface provides clean API: boundaryFound boolean + counts
+- When boundary not found, all bookmarks default to toCategorizeCount with keeperCount=0
 
 ---
