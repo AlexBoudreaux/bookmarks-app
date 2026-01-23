@@ -229,3 +229,33 @@ Started: 2026-01-22
 - Handles errors with appropriate status codes (400 for bad request, 500 for server errors)
 
 ---
+## 2026-01-23 - CAT-001
+- Implemented categorize page layout with TDD approach
+- Created responsive layout with fixed header, progress bar, bookmark preview, and category picker
+- Applied refined dark theme aesthetic with gradients, subtle animations, and glassmorphism
+- Screenshot verified UI matches design intent: sleek dashboard aesthetic with smooth animations
+- All 55 tests passing, build passes with no errors
+
+**Files changed:**
+- `src/app/categorize/page.tsx` (created)
+- `src/app/categorize/page.test.tsx` (created)
+
+**Learnings:**
+- Supabase mock for tests needs chainable builder pattern: each method returns the builder object
+- Create mock builder inside vi.mock() factory, define methods that return the same builder for chaining
+- Pattern: `const builder: any = { select: () => builder, eq: () => builder, order: () => ({ data, error }) }`
+- Server components can fetch data directly in the component without useEffect or client state
+- Progress bar uses dynamic width calculation based on current index and total count
+- Glassmorphism effect: `backdrop-blur-xl` + semi-transparent background + subtle borders
+
+**Design decisions:**
+- Dark theme with gradient background (zinc-950 via zinc-900)
+- Emerald to teal gradient for progress bar and accent colors
+- Fixed header with backdrop blur for professional dashboard feel
+- Large centered preview area (min-height 500px) with placeholder icon and text
+- Category picker grid (2-5 columns responsive) with hover effects and keyboard hints
+- Keyboard shortcut display using `<kbd>` elements with styled backgrounds
+- Decorative background glow on hover using absolute positioned gradient divs with blur
+
+---
+
