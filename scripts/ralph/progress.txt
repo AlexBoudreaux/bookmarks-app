@@ -10,6 +10,8 @@ Started: 2026-01-22
 - Components: Use shadcn/ui from `@/components/ui/`
 - Styling: Tailwind + `cn()` from `@/lib/utils`
 - Path alias: `@/*` maps to `./src/*`
+- Testing: Vitest for unit tests (`src/**/*.test.ts`), Playwright for E2E (`e2e/**/*.spec.ts`)
+- Test imports: Use `@/` path alias in tests (configured in vitest.config.ts)
 
 ## Key Files
 
@@ -20,4 +22,20 @@ Started: 2026-01-22
 
 ---
 
-(Iteration logs will be appended below)
+## 2026-01-22 - SETUP-001
+- Verified Vitest infrastructure was already configured
+- Created sample test in `src/lib/utils.test.ts`
+- Test validates `cn()` function merges classes correctly using clsx + tailwind-merge
+- All 6 test cases pass: basic merge, conditionals, conflicting classes, empty inputs, null/undefined, arrays/objects
+- Build passes with no type errors
+
+**Files changed:**
+- `src/lib/utils.test.ts` (created)
+- `package.json` (added happy-dom and @vitest/ui)
+
+**Learnings:**
+- Vitest config was already set up with jsdom environment, path aliases (@/), and test setup file
+- The cn() utility combines clsx (conditional classes) with tailwind-merge (resolves conflicting Tailwind classes)
+- Test naming pattern: `src/**/*.test.ts` for unit tests, `e2e/**/*.spec.ts` for E2E tests
+
+---
