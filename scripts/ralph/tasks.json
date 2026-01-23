@@ -481,7 +481,7 @@
       ],
       "priority": 71,
       "dependsOn": ["OG-001", "CAT-005"],
-      "done": false
+      "done": true
     }
   ]
 }

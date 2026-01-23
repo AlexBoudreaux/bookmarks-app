@@ -6,18 +6,30 @@ import { ExternalLink } from 'lucide-react'
 interface LinkCardProps {
   title: string
   url: string
+  ogImage?: string | null
 }
 
-export function LinkCard({ title, url }: LinkCardProps) {
+export function LinkCard({ title, url, ogImage }: LinkCardProps) {
   const domain = extractDomain(url)
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[500px] rounded-lg border border-zinc-800 bg-zinc-900/50 p-8">
       <div className="max-w-2xl w-full text-center">
-        {/* Link Icon */}
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-zinc-800/50 mb-6">
-          <ExternalLink className="w-8 h-8 text-zinc-600" />
-        </div>
+        {/* OG Image or Link Icon */}
+        {ogImage ? (
+          <div className="relative mb-6 rounded-lg overflow-hidden mx-auto max-w-lg">
+            <img
+              src={ogImage}
+              alt=""
+              loading="lazy"
+              className="w-full h-auto max-h-64 object-cover rounded-lg"
+            />
+          </div>
+        ) : (
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-zinc-800/50 mb-6">
+            <ExternalLink className="w-8 h-8 text-zinc-600" />
+          </div>
+        )}
 
         {/* Title */}
         {title && (
@@ -39,11 +51,6 @@ export function LinkCard({ title, url }: LinkCardProps) {
           <ExternalLink className="w-4 h-4 flex-shrink-0" />
           <span className="truncate max-w-xl">{url}</span>
         </a>
-
-        {/* Note about OG images coming later */}
-        <p className="text-xs text-zinc-600 mt-8">
-          Image previews coming in OG-002
-        </p>
       </div>
     </div>
   )

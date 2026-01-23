@@ -241,7 +241,7 @@ export function CategorizeWrapper({
             {currentBookmark && currentBookmark.is_tweet ? (
               <TweetPreview url={currentBookmark.url} />
             ) : currentBookmark ? (
-              <LinkCard title={currentBookmark.title || ''} url={currentBookmark.url} />
+              <LinkCard title={currentBookmark.title || ''} url={currentBookmark.url} ogImage={currentBookmark.og_image} />
             ) : null}
           </div>
         </div>

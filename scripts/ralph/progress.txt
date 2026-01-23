@@ -932,3 +932,27 @@ Started: 2026-01-22
 - og_image column already exists in database schema from initial migration
 
 ---
+
+## 2026-01-23 - OG-002
+- Updated LinkCard component to display OG images when available
+- Added optional ogImage prop to LinkCardProps interface
+- OG image displayed in a rounded container with max-h-64 for proper sizing
+- Falls back to ExternalLink icon when no OG image available
+- Implemented lazy loading (loading="lazy") for images
+- Empty alt attribute for decorative purposes
+- Updated CategorizeWrapper to pass og_image from bookmark to LinkCard
+- Removed "Image previews coming in OG-002" placeholder note
+- All 335 tests passing, build succeeds
+
+**Files changed:**
+- src/components/categorize/link-card.tsx (updated with ogImage prop)
+- src/components/categorize/link-card.test.tsx (added 4 OG image tests)
+- src/components/categorize/categorize-wrapper.tsx (passes og_image to LinkCard)
+
+**Learnings:**
+- BrowseLinkCard already had OG image support from BRW-003, used similar pattern
+- TDD workflow: write failing tests first, implement until passing
+- Decorative images should use empty alt attribute for accessibility
+- lazy loading via native loading="lazy" attribute is the simplest approach
+
+---

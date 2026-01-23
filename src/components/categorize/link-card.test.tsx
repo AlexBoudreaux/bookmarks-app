@@ -14,6 +14,48 @@ describe('LinkCard', () => {
     expect(screen.getByText('Example Article')).toBeInTheDocument()
   })
 
+  it('displays OG image when provided', () => {
+    const { container } = render(
+      <LinkCard
+        title="Example Article"
+        url="https://example.com/article"
+        ogImage="https://example.com/og-image.jpg"
+      />
+    )
+
+    const img = container.querySelector('img')
+    expect(img).toBeInTheDocument()
+    expect(img).toHaveAttribute('src', 'https://example.com/og-image.jpg')
+  })
+
+  it('shows fallback icon when no OG image', () => {
+    const { container } = render(
+      <LinkCard
+        title="Example Article"
+        url="https://example.com/article"
+      />
+    )
+
+    const img = container.querySelector('img')
+    expect(img).not.toBeInTheDocument()
+    // Should show link icon instead
+    const svg = container.querySelector('svg')
+    expect(svg).toBeInTheDocument()
+  })
+
+  it('lazy loads OG image', () => {
+    const { container } = render(
+      <LinkCard
+        title="Example Article"
+        url="https://example.com/article"
+        ogImage="https://example.com/og-image.jpg"
+      />
+    )
+
+    const img = container.querySelector('img')
+    expect(img).toHaveAttribute('loading', 'lazy')
+  })
+
   it('displays domain extracted from URL', () => {
     render(
       <LinkCard
@@ -97,5 +139,18 @@ describe('LinkCard', () => {
 
     const link = screen.getByRole('link')
     expect(link).toHaveAttribute('href', longUrl)
+  })
+
+  it('shows OG image with empty alt for decorative purposes', () => {
+    const { container } = render(
+      <LinkCard
+        title="Example"
+        url="https://example.com"
+        ogImage="https://example.com/og.jpg"
+      />
+    )
+
+    const img = container.querySelector('img')
+    expect(img).toHaveAttribute('alt', '')
   })
 })
