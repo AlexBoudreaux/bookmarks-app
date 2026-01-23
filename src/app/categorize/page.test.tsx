@@ -2,12 +2,16 @@ import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock Supabase - needs to return a chainable builder
-const createMockBuilder = () => {
+const createMockBuilder = (tableName: string) => {
   const builder: any = {
     select: vi.fn(() => builder),
     eq: vi.fn(() => builder),
+    is: vi.fn(() => builder),
     order: vi.fn(() => ({
-      data: [],
+      data: tableName === 'categories' ? [
+        { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
+        { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
+      ] : [],
       error: null,
     })),
   }
@@ -16,7 +20,7 @@ const createMockBuilder = () => {
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
-    from: vi.fn(() => createMockBuilder()),
+    from: vi.fn((tableName: string) => createMockBuilder(tableName)),
   },
 }))
 

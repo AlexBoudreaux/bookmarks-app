@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { CategorizeWrapper } from '@/components/categorize/categorize-wrapper'
 
 export default async function CategorizePage() {
   // Fetch uncategorized bookmarks count
@@ -9,6 +10,13 @@ export default async function CategorizePage() {
     .eq('is_keeper', false)
     .eq('is_skipped', false)
     .order('add_date', { ascending: true })
+
+  // Fetch main categories (parent_id IS NULL)
+  const { data: categories, error: categoriesError } = await supabase
+    .from('categories')
+    .select('*')
+    .is('parent_id', null)
+    .order('usage_count', { ascending: false })
 
   const totalCount = bookmarks?.length || 0
   const currentIndex = 0 // Will be dynamic later
@@ -64,52 +72,9 @@ export default async function CategorizePage() {
             </div>
           </div>
 
-          {/* Category Picker Placeholder */}
+          {/* Category Picker */}
           <div className="relative">
-            <div className="bg-zinc-900/30 backdrop-blur-sm border border-zinc-800/50 rounded-2xl p-8">
-              <div className="text-center mb-6">
-                <h3 className="text-lg font-medium text-zinc-400 mb-1">Categories</h3>
-                <p className="text-sm text-zinc-600">Press 1-9 or 0 to select</p>
-              </div>
-
-              {/* Placeholder grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((num) => (
-                  <div
-                    key={num}
-                    className="relative group/btn"
-                  >
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-xl opacity-0 group-hover/btn:opacity-100 blur transition-opacity" />
-                    <button className="relative w-full bg-zinc-800/30 hover:bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-3 text-left transition-all">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-mono text-zinc-600 bg-zinc-900/50 px-2 py-0.5 rounded">
-                          {num}
-                        </span>
-                        <span className="text-sm text-zinc-500">Category</span>
-                      </div>
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Keyboard hints */}
-              <div className="mt-8 pt-6 border-t border-zinc-800/50">
-                <div className="flex items-center justify-center gap-8 text-sm text-zinc-600">
-                  <div className="flex items-center gap-2">
-                    <kbd className="px-2 py-1 bg-zinc-800/50 border border-zinc-700/50 rounded text-xs font-mono">←</kbd>
-                    <span>Previous</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <kbd className="px-2 py-1 bg-zinc-800/50 border border-zinc-700/50 rounded text-xs font-mono">Delete</kbd>
-                    <span>Skip</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <kbd className="px-2 py-1 bg-zinc-800/50 border border-zinc-700/50 rounded text-xs font-mono">→</kbd>
-                    <span>Next</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <CategorizeWrapper categories={categories || []} />
           </div>
         </div>
       </main>

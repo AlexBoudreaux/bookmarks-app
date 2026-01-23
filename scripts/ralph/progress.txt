@@ -259,3 +259,43 @@ Started: 2026-01-22
 
 ---
 
+## 2026-01-23 - CAT-002
+- Implemented CategoryPicker component with keyboard shortcuts
+- Created comprehensive test suite with 8 test cases in category-picker.test.tsx
+- Component displays top 10 main categories sorted by usage_count descending
+- Keyboard shortcuts 1-9 and 0 select first 10 categories
+- Click handlers work alongside keyboard shortcuts
+- Selected category highlighted with emerald border and background
+- "New category" button with [-] key hint displayed
+- Integrated CategoryPicker into categorize page via CategorizeWrapper client component
+- Server component fetches main categories (parent_id IS NULL) sorted by usage_count
+- Screenshot verified UI matches design intent: sleek dashboard with real category data
+- All 63 tests passing, build passes with no errors
+
+**Files changed:**
+- `src/components/categorize/category-picker.tsx` (created)
+- `src/components/categorize/category-picker.test.tsx` (created)
+- `src/components/categorize/categorize-wrapper.tsx` (created)
+- `src/app/categorize/page.tsx` (updated - added categories fetch and CategoryPicker integration)
+- `src/app/categorize/page.test.tsx` (updated - mock returns categories data)
+
+**Learnings:**
+- Keyboard event listeners in React: Use useEffect with window.addEventListener
+- Clean up event listeners in useEffect return function to prevent memory leaks
+- Server components can fetch data, pass to client components for interaction
+- Client wrapper pattern: Server component fetches data, client component handles state and events
+- Category sorting: sort by usage_count descending, slice(0, 10) for top 10
+- Keyboard mapping: keys 1-9 map to index 0-8, key 0 maps to index 9
+- Test keyboard events with userEvent.keyboard('1') from @testing-library/user-event
+- Supabase query for main categories: .is('parent_id', null) to filter null values
+- Mock Supabase differently per table: pass table name to factory, return different data
+
+**Design decisions:**
+- Top 10 categories accessible via keyboard (1-9, 0), rest shown in scrollable list (future)
+- Selected category gets emerald-500 border and emerald-500/10 background tint
+- Category name changes color to emerald-400 when selected for clear visual feedback
+- Keyboard hints displayed at bottom for navigation (← → Delete)
+- "New category" option always visible with [-] key hint
+
+---
+
