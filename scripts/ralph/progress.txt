@@ -24,6 +24,7 @@ Started: 2026-01-22
 - Tweet embeds: Use `getTweetId()` from `@/lib/tweet-utils` to extract tweet ID, render with `<Tweet id={tweetId} />` from react-tweet
 - react-tweet components: Tweet (embed), TweetNotFound (error), TweetSkeleton (loading) - no API key needed
 - Chrome export: Use `exportToChrome()` from `@/lib/export-bookmarks` to generate Chrome bookmark HTML from keepers
+- Drag-and-drop lists: Use `@hello-pangea/dnd` with DragDropContext, Droppable, and Draggable components. Optimistic UI updates with rollback on error.
 
 ## Key Files
 
@@ -879,5 +880,32 @@ Started: 2026-01-22
 - Bookmark counts for main categories need to aggregate all subcategory counts
 - PATCH routes use async params in Next.js 16: `params: Promise<{ id: string }>`
 - Delete cascades: delete subcategories first, then bookmark_categories junction records, then the category itself
+
+---
+
+## 2026-01-23 - MGT-002
+- Implemented drag-to-reorder functionality for main categories
+- Added @hello-pangea/dnd library for accessible drag-and-drop
+- Created POST /api/categories/reorder route to persist sort_order
+- Drag handle on each main category row with visual feedback during drag
+- Emerald border and shadow highlight when dragging
+- Optimistic UI updates with rollback on error
+- Updates sort_order for all reordered categories via parallel Supabase updates
+- All 321 tests passing, build succeeds
+
+**Files changed:**
+- src/components/categories/categories-content.tsx (updated with DragDropContext)
+- src/components/categories/categories-content.test.tsx (added 5 drag-and-drop tests)
+- src/app/api/categories/reorder/route.ts (created)
+- src/app/api/categories/reorder/route.test.ts (created)
+- package.json (added @hello-pangea/dnd)
+
+**Learnings:**
+- @hello-pangea/dnd is a maintained fork of react-beautiful-dnd, ideal for list-based drag-and-drop
+- DragDropContext wraps the draggable area, Droppable defines drop zones, Draggable wraps each item
+- Separate dragHandleProps from draggableProps allows restricting drag initiation to handle only
+- Optimistic UI: update local state immediately, revert on API error
+- Test mocking for dnd: mock the entire module and expose onDragEnd via window for test invocation
+- Visual feedback during drag via snapshot.isDragging prop in Draggable render function
 
 ---

@@ -7,6 +7,33 @@ import { CategoriesContent } from './categories-content'
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
+// Mock @hello-pangea/dnd to make testing easier
+vi.mock('@hello-pangea/dnd', () => ({
+  DragDropContext: ({ children, onDragEnd }: any) => {
+    // Store onDragEnd so we can call it in tests
+    ;(window as any).__onDragEnd = onDragEnd
+    return <div data-testid="drag-drop-context">{children}</div>
+  },
+  Droppable: ({ children }: any) =>
+    children(
+      {
+        droppableProps: { 'data-testid': 'droppable' },
+        innerRef: () => {},
+        placeholder: null,
+      },
+      { isDraggingOver: false }
+    ),
+  Draggable: ({ children, draggableId, index }: any) =>
+    children(
+      {
+        draggableProps: { 'data-draggable-id': draggableId },
+        dragHandleProps: { 'data-drag-handle': 'true', role: 'button' },
+        innerRef: () => {},
+      },
+      { isDragging: false }
+    ),
+}))
+
 const mockCategories = [
   { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: null },
   { id: '2', name: 'Landing Pages', parent_id: '1', usage_count: 50, sort_order: 0, created_at: null },
@@ -244,5 +271,107 @@ describe('CategoriesContent', () => {
     )
 
     expect(screen.getByText(/no categories/i)).toBeInTheDocument()
+  })
+
+  it('renders drag handles for each main category', () => {
+    render(
+      <CategoriesContent
+        categories={mockCategories}
+        bookmarkCategories={mockBookmarkCategories}
+      />
+    )
+
+    const dragHandles = screen.getAllByRole('button', { name: /drag to reorder/i })
+    expect(dragHandles).toHaveLength(2) // 2 main categories
+  })
+
+  it('shows visual feedback when dragging', () => {
+    render(
+      <CategoriesContent
+        categories={mockCategories}
+        bookmarkCategories={mockBookmarkCategories}
+      />
+    )
+
+    // Verify DragDropContext is rendered
+    expect(screen.getByTestId('drag-drop-context')).toBeInTheDocument()
+  })
+
+  it('calls reorder API when drag ends at new position', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true }),
+    })
+
+    render(
+      <CategoriesContent
+        categories={mockCategories}
+        bookmarkCategories={mockBookmarkCategories}
+      />
+    )
+
+    // Simulate a drag end event (moving AI Dev before UI)
+    const onDragEnd = (window as any).__onDragEnd
+    onDragEnd({
+      destination: { index: 0 },
+      source: { index: 1 },
+      draggableId: '4', // AI Dev
+    })
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/categories/reorder',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ categoryIds: ['4', '1'] }), // AI Dev now first
+        })
+      )
+    })
+  })
+
+  it('does not call API when dropped at same position', async () => {
+    mockFetch.mockClear()
+
+    render(
+      <CategoriesContent
+        categories={mockCategories}
+        bookmarkCategories={mockBookmarkCategories}
+      />
+    )
+
+    // Simulate drag end at same position
+    const onDragEnd = (window as any).__onDragEnd
+    onDragEnd({
+      destination: { index: 0 },
+      source: { index: 0 },
+      draggableId: '1',
+    })
+
+    // Wait a tick to ensure no async calls are made
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('does not call API when dropped outside droppable area', async () => {
+    mockFetch.mockClear()
+
+    render(
+      <CategoriesContent
+        categories={mockCategories}
+        bookmarkCategories={mockBookmarkCategories}
+      />
+    )
+
+    // Simulate drag end with no destination
+    const onDragEnd = (window as any).__onDragEnd
+    onDragEnd({
+      destination: null,
+      source: { index: 0 },
+      draggableId: '1',
+    })
+
+    // Wait a tick to ensure no async calls are made
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 })

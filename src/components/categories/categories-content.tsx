@@ -2,6 +2,12 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { GripVertical, Pencil, Trash2, Plus, FolderOpen } from 'lucide-react'
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from '@hello-pangea/dnd'
 
 interface Category {
   id: string
@@ -29,6 +35,7 @@ export function CategoriesContent({
   onAddCategory,
 }: CategoriesContentProps) {
   const [categories, setCategories] = useState(initialCategories)
+  const [isDragging, setIsDragging] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
@@ -199,6 +206,50 @@ export function CategoriesContent({
     }
   }
 
+  const handleDragStart = () => {
+    setIsDragging(true)
+  }
+
+  const handleDragEnd = async (result: DropResult) => {
+    setIsDragging(false)
+
+    if (!result.destination) return
+    if (result.destination.index === result.source.index) return
+
+    const reordered = [...mainCategories]
+    const [removed] = reordered.splice(result.source.index, 1)
+    reordered.splice(result.destination.index, 0, removed)
+
+    // Update sort_order for all affected categories
+    const updatedCategories = reordered.map((cat, index) => ({
+      ...cat,
+      sort_order: index,
+    }))
+
+    // Update local state immediately for optimistic UI
+    setCategories(prev =>
+      prev.map(cat => {
+        const updated = updatedCategories.find(u => u.id === cat.id)
+        return updated || cat
+      })
+    )
+
+    // Persist to database
+    try {
+      await fetch('/api/categories/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          categoryIds: updatedCategories.map(c => c.id),
+        }),
+      })
+    } catch (error) {
+      console.error('Failed to save category order:', error)
+      // Revert on error
+      setCategories(initialCategories)
+    }
+  }
+
   if (categories.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
@@ -210,25 +261,40 @@ export function CategoriesContent({
   }
 
   return (
-    <div className="space-y-3">
-      {mainCategories.map(mainCat => {
-        const subcategories = getSubcategories(mainCat.id)
-        const bookmarkCount = getBookmarkCount(mainCat.id, true)
-
-        return (
+    <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <Droppable droppableId="categories">
+        {(provided, snapshot) => (
           <div
-            key={mainCat.id}
-            data-category={mainCat.id}
-            className="bg-zinc-900/50 border border-zinc-800/50 rounded-lg overflow-hidden"
+            {...provided.droppableProps}
+            ref={provided.innerRef}
+            className="space-y-3"
           >
-            {/* Main Category Row */}
-            <div className="flex items-center gap-3 px-4 py-3 group">
-              <button
-                className="text-zinc-600 hover:text-zinc-400 cursor-grab active:cursor-grabbing"
-                aria-label="Drag to reorder"
-              >
-                <GripVertical className="w-5 h-5" />
-              </button>
+            {mainCategories.map((mainCat, index) => {
+              const subcategories = getSubcategories(mainCat.id)
+              const bookmarkCount = getBookmarkCount(mainCat.id, true)
+
+              return (
+                <Draggable key={mainCat.id} draggableId={mainCat.id} index={index}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      data-category={mainCat.id}
+                      className={`bg-zinc-900/50 border rounded-lg overflow-hidden transition-shadow ${
+                        snapshot.isDragging
+                          ? 'border-emerald-500/50 shadow-lg shadow-emerald-500/10'
+                          : 'border-zinc-800/50'
+                      }`}
+                    >
+                      {/* Main Category Row */}
+                      <div className="flex items-center gap-3 px-4 py-3 group">
+                        <div
+                          {...provided.dragHandleProps}
+                          className="text-zinc-600 hover:text-zinc-400 cursor-grab active:cursor-grabbing"
+                          aria-label="Drag to reorder"
+                        >
+                          <GripVertical className="w-5 h-5" />
+                        </div>
 
               {editingId === mainCat.id ? (
                 <input
@@ -341,10 +407,16 @@ export function CategoriesContent({
                   </button>
                 )}
               </div>
-            </div>
+                      </div>
+                    </div>
+                  )}
+                </Draggable>
+              )
+            })}
+            {provided.placeholder}
           </div>
-        )
-      })}
+        )}
+      </Droppable>
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
@@ -412,6 +484,6 @@ export function CategoriesContent({
           </div>
         </div>
       )}
-    </div>
+    </DragDropContext>
   )
 }

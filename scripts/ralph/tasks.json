@@ -452,7 +452,7 @@
       ],
       "priority": 61,
       "dependsOn": ["MGT-001"],
-      "done": false
+      "done": true
     },
     {
       "id": "OG-001",
