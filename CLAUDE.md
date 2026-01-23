@@ -121,7 +121,12 @@ Four tables: `bookmarks`, `categories` (hierarchical), `settings` (key-value), `
 Before marking any task complete:
 1. `npm run build` passes (type errors caught)
 2. `npm run test` passes (all tests green)
-3. For UI changes: verify with dev-browser screenshot
+3. **For UI changes: REQUIRED screenshot verification with dev-browser**
+   - Start dev server: `npm run dev` (background)
+   - Start dev-browser: `~/.claude/plugins/cache/dev-browser-marketplace/dev-browser/66682fb0513a/skills/dev-browser/server.sh &`
+   - Wait for "Ready" message
+   - Take screenshot and visually verify it looks correct
+   - Screenshot template in prompt.md
 4. For API/external integrations: verify with actual API call
 
 ### Knowledge Persistence

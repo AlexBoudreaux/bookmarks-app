@@ -30,17 +30,24 @@ for i in $(seq 1 $MAX_ITERATIONS); do
   OUTPUT=$(cat "$SCRIPT_DIR/prompt.md" | claude --dangerously-skip-permissions 2>&1 | tee /dev/stderr) || {
     RETRY_EXIT=$?
     echo ""
-    echo "⚠️  Iteration $i failed (exit code $RETRY_EXIT). Retrying once..."
+    echo "⚠️  Iteration $i failed (exit code $RETRY_EXIT). Retry 1 of 2..."
     echo ""
 
-    # Retry once
+    # Retry 1
     OUTPUT=$(cat "$SCRIPT_DIR/prompt.md" | claude --dangerously-skip-permissions 2>&1 | tee /dev/stderr) || {
       echo ""
-      echo "❌ Retry failed. Skipping to next iteration."
-      echo "   Check tasks.json for incomplete tasks."
+      echo "⚠️  Retry 1 failed. Retry 2 of 2..."
       echo ""
-      sleep 2
-      continue
+
+      # Retry 2
+      OUTPUT=$(cat "$SCRIPT_DIR/prompt.md" | claude --dangerously-skip-permissions 2>&1 | tee /dev/stderr) || {
+        echo ""
+        echo "❌ All retries failed. Skipping to next iteration."
+        echo "   Check tasks.json for incomplete tasks."
+        echo ""
+        sleep 2
+        continue
+      }
     }
   }
 

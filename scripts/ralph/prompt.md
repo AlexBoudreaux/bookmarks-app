@@ -35,7 +35,47 @@ You are an autonomous coding agent. Complete ONE task per iteration.
 ### 5. Verify
 - `npm run build` must pass
 - `npm run test` must pass
-- For UI: take screenshot with dev-browser to verify appearance
+- **For UI tasks: REQUIRED screenshot verification**
+
+#### Screenshot Verification (UI tasks only)
+
+After implementing UI changes, verify visually:
+
+```bash
+# Start dev server in background
+npm run dev &
+
+# Start dev-browser
+~/.claude/plugins/cache/dev-browser-marketplace/dev-browser/66682fb0513a/skills/dev-browser/server.sh &
+
+# Wait for "Ready" message, then take screenshot
+cd ~/.claude/plugins/cache/dev-browser-marketplace/dev-browser/66682fb0513a/skills/dev-browser && npx tsx <<'EOF'
+import { connect, waitForPageLoad } from "@/client.js";
+
+const client = await connect();
+const page = await client.page("ui-check", { viewport: { width: 1920, height: 1080 } });
+
+await page.goto("http://localhost:3000/your-route");
+await waitForPageLoad(page);
+
+await page.screenshot({ path: "tmp/screenshot.png" });
+
+console.log({ title: await page.title(), url: page.url() });
+await client.disconnect();
+EOF
+
+# Read screenshot to verify it looks correct
+# Then kill servers
+pkill -f "next dev"
+pkill -f "dev-browser"
+```
+
+**Verification checklist:**
+- Layout matches design intent
+- Dark theme applied correctly
+- No visual glitches or misalignment
+- Text is readable
+- Interactive elements are visible
 
 ### 6. Update Progress
 Append to `scripts/ralph/progress.txt`:
