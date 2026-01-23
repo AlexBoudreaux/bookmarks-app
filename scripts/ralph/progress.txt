@@ -471,3 +471,36 @@ Started: 2026-01-22
 - Skip clears selected categories before moving to next bookmark
 
 ---
+
+## 2026-01-23 - CAT-008
+- Implemented save categorization to Supabase when navigating to next bookmark
+- Created POST /api/bookmarks/categorize route
+- Saves bookmark_categories junction records for all selected category pairs
+- Sets is_categorized=true and clears is_skipped=false on bookmark
+- Increments usage_count on selected categories via RPC function
+- Created migration for increment_usage_counts SQL function
+- Integrated API call into categorize-wrapper moveToNext handler
+- All 118 tests passing, build passes with no errors
+
+**Files changed:**
+- src/app/api/bookmarks/categorize/route.ts (created)
+- src/app/api/bookmarks/categorize/route.test.ts (created)
+- src/components/categorize/categorize-wrapper.tsx (updated with API call)
+- src/components/categorize/categorize-wrapper.test.tsx (added 2 API tests)
+- supabase/migrations/003_increment_usage_counts_fn.sql (created)
+
+**Learnings:**
+- Supabase RPC functions are cleaner than multiple UPDATE statements for incrementing counts
+- Create RPC function with `CREATE OR REPLACE FUNCTION` and `$$ LANGUAGE plpgsql`
+- Junction table records save both main and sub category IDs (one entry per category)
+- flatMap useful for extracting all IDs from category pairs: `pairs.flatMap(p => [p.main.id, p.sub.id])`
+- Clearing is_skipped when categorizing allows un-skipping by going back and categorizing
+
+**API Design:**
+- POST /api/bookmarks/categorize accepts bookmarkId and categoryIds array
+- Saves to bookmark_categories table (junction records)
+- Updates bookmarks table (is_categorized=true, is_skipped=false)
+- Calls RPC to increment usage_count on categories
+- RPC failure logged but doesn't fail request since categorization succeeded
+
+---

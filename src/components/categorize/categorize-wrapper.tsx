@@ -48,12 +48,31 @@ export function CategorizeWrapper({
     setSelectedPairs(pairs)
   }, [])
 
-  const moveToNext = useCallback(() => {
+  const moveToNext = useCallback(async () => {
     if (selectedPairs.length === 0) {
       // Shake animation when no category selected
       setIsShaking(true)
       setTimeout(() => setIsShaking(false), 500)
       return
+    }
+
+    // Save categorization to Supabase
+    if (currentBookmark) {
+      // Collect all category IDs (both main and sub from each pair)
+      const categoryIds = selectedPairs.flatMap(pair => [pair.main.id, pair.sub.id])
+
+      try {
+        await fetch('/api/bookmarks/categorize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bookmarkId: currentBookmark.id,
+            categoryIds,
+          }),
+        })
+      } catch (error) {
+        console.error('Failed to save categorization:', error)
+      }
     }
 
     if (isAtEnd) {
@@ -67,7 +86,7 @@ export function CategorizeWrapper({
     const newIndex = currentIndex + 1
     setCurrentIndex(newIndex)
     onIndexChange?.(newIndex)
-  }, [selectedPairs.length, isAtEnd, currentIndex, onIndexChange])
+  }, [selectedPairs, currentBookmark, isAtEnd, currentIndex, onIndexChange])
 
   const moveToPrevious = useCallback(() => {
     if (isAtStart) {

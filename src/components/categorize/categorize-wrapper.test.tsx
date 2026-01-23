@@ -3,6 +3,10 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CategorizeWrapper } from './categorize-wrapper'
 
+// Mock fetch globally
+const mockFetch = vi.fn()
+global.fetch = mockFetch
+
 // Mock CategoryPicker to expose selected pairs state
 vi.mock('./category-picker', () => ({
   CategoryPicker: ({
@@ -100,6 +104,7 @@ describe('CategorizeWrapper - Navigation', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ success: true }) })
   })
 
   describe('Right Arrow Key (→)', () => {
@@ -171,6 +176,54 @@ describe('CategorizeWrapper - Navigation', () => {
       await waitFor(() => {
         expect(screen.getByTestId('selected-pairs')).toHaveTextContent('[]')
       })
+    })
+  })
+
+  describe('Save categorization to API', () => {
+    it('calls categorize API when moving to next bookmark', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+        />
+      )
+
+      // Select a category
+      await user.click(screen.getByTestId('select-category'))
+
+      // Press right arrow
+      await user.keyboard('{ArrowRight}')
+
+      // Should call categorize API with bookmark id and category ids
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/bookmarks/categorize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bookmarkId: 'b1',
+            categoryIds: ['1', '1a'], // main and sub from the pair
+          }),
+        })
+      })
+    })
+
+    it('does not call categorize API when shaking (no category selected)', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+        />
+      )
+
+      // Press right arrow without selecting category
+      await user.keyboard('{ArrowRight}')
+
+      // Should NOT call categorize API
+      expect(mockFetch).not.toHaveBeenCalledWith('/api/bookmarks/categorize', expect.anything())
     })
   })
 
