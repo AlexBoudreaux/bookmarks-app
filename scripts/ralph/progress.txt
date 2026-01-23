@@ -23,6 +23,7 @@ Started: 2026-01-22
 - Category hierarchy: Filter by `parent_id === null` for main categories, `parent_id === mainId` for subcategories
 - Tweet embeds: Use `getTweetId()` from `@/lib/tweet-utils` to extract tweet ID, render with `<Tweet id={tweetId} />` from react-tweet
 - react-tweet components: Tweet (embed), TweetNotFound (error), TweetSkeleton (loading) - no API key needed
+- Chrome export: Use `exportToChrome()` from `@/lib/export-bookmarks` to generate Chrome bookmark HTML from keepers
 
 ## Key Files
 
@@ -804,5 +805,27 @@ Started: 2026-01-22
 - Active filter chips displayed below filter buttons with X to remove
 - Domain dropdown stays open for multi-select behavior
 - Has Notes is a simple toggle (not dropdown)
+
+---
+
+## 2026-01-23 - EXP-001
+- Implemented exportToChrome function to generate Chrome bookmark HTML from keepers
+- Preserves original folder structure from chrome_folder_path field
+- Handles nested folder hierarchies via tree-building algorithm
+- Includes ADD_DATE timestamps in Unix seconds format
+- Escapes HTML special characters to prevent XSS
+- Created 11 comprehensive unit tests covering all acceptance criteria
+- All 277 tests passing, build succeeds
+
+**Files changed:**
+- src/lib/export-bookmarks.ts (created)
+- src/lib/export-bookmarks.test.ts (created)
+- scripts/ralph/progress.txt (updated with new pattern)
+
+**Learnings:**
+- Chrome bookmark format uses Unix timestamps in seconds (not milliseconds)
+- Tree structure approach simplifies nested folder generation: build Map tree then recursively render
+- PERSONAL_TOOLBAR_FOLDER="true" attribute marks the Bookmarks Bar folder
+- escapeHtml should handle &, <, >, ", and ' to prevent malformed HTML
 
 ---
