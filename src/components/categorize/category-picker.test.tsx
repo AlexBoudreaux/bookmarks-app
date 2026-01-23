@@ -144,8 +144,10 @@ describe('CategoryPicker', () => {
       // Select subcategory "Landing Pages" (should be first)
       await user.keyboard('1')
 
-      // Should show chip with "UI > Landing Pages"
-      expect(screen.getByText(/UI > Landing Pages/i)).toBeInTheDocument()
+      // Wait for selection animation and chip to appear
+      await waitFor(() => {
+        expect(screen.getByText(/UI > Landing Pages/i)).toBeInTheDocument()
+      })
     })
 
     it('allows clicking subcategory to select', async () => {
@@ -164,8 +166,10 @@ describe('CategoryPicker', () => {
       const componentsButton = screen.getByRole('button', { name: /Components/ })
       await user.click(componentsButton)
 
-      // Should show chip with "UI > Components"
-      expect(screen.getByText(/UI > Components/i)).toBeInTheDocument()
+      // Wait for selection animation and chip to appear
+      await waitFor(() => {
+        expect(screen.getByText(/UI > Components/i)).toBeInTheDocument()
+      })
     })
 
     it('allows adding multiple category pairs', async () => {
@@ -179,8 +183,10 @@ describe('CategoryPicker', () => {
       })
       await user.keyboard('1') // Landing Pages
 
-      // Should show first chip
-      expect(screen.getByText(/UI > Landing Pages/i)).toBeInTheDocument()
+      // Wait for first chip to appear
+      await waitFor(() => {
+        expect(screen.getByText(/UI > Landing Pages/i)).toBeInTheDocument()
+      })
 
       // In ready state, can select another main category directly
       await user.keyboard('2') // AI Dev
@@ -189,9 +195,11 @@ describe('CategoryPicker', () => {
       })
       await user.keyboard('1') // Prompts
 
-      // Should show both chips
+      // Wait for second chip and verify both chips
+      await waitFor(() => {
+        expect(screen.getByText(/AI Dev > Prompts/i)).toBeInTheDocument()
+      })
       expect(screen.getByText(/UI > Landing Pages/i)).toBeInTheDocument()
-      expect(screen.getByText(/AI Dev > Prompts/i)).toBeInTheDocument()
     })
 
     it('shows add another prompt after subcategory selected', async () => {
@@ -205,8 +213,10 @@ describe('CategoryPicker', () => {
       })
       await user.keyboard('1')
 
-      // Should show prompt to add another category
-      expect(screen.getByText(/Add another/i)).toBeInTheDocument()
+      // Wait for selection animation and prompt to appear
+      await waitFor(() => {
+        expect(screen.getByText(/Add another/i)).toBeInTheDocument()
+      })
     })
   })
 

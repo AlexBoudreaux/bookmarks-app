@@ -35,6 +35,7 @@ export function CategoryPicker({
   const [isNewCategoryModalOpen, setIsNewCategoryModalOpen] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
   const [selectedMainIndex, setSelectedMainIndex] = useState<number | null>(null)
+  const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null)
 
   // Use controlled pairs if provided, otherwise manage internally
   const [internalPairs, setInternalPairs] = useState<CategoryPair[]>([])
@@ -82,21 +83,29 @@ export function CategoryPicker({
     : []
 
   const handleMainCategorySelect = (category: Category, index?: number) => {
+    // Highlight the selected button
+    setHighlightedIndex(index ?? null)
     setSelectedMain(category)
     setSelectedMainIndex(index ?? null)
     setIsAnimating(true)
-    // Small delay for animation
+    // Small delay for animation - shows highlight then transitions
     setTimeout(() => {
       setState('subcategory')
       setIsAnimating(false)
-    }, 150)
+      setHighlightedIndex(null)
+    }, 200)
     onSelect(category)
   }
 
-  const handleSubcategorySelect = (category: Category) => {
+  const handleSubcategorySelect = (category: Category, index?: number) => {
     if (selectedMain) {
-      setSelectedPairs([...selectedPairs, { main: selectedMain, sub: category }])
-      setState('ready')
+      // Highlight briefly
+      setHighlightedIndex(index ?? null)
+      setTimeout(() => {
+        setSelectedPairs([...selectedPairs, { main: selectedMain, sub: category }])
+        setState('ready')
+        setHighlightedIndex(null)
+      }, 150)
       onSelect(category)
     }
   }
@@ -139,13 +148,13 @@ export function CategoryPicker({
         if (e.key >= '1' && e.key <= '9') {
           const index = parseInt(e.key) - 1
           if (subcategories[index]) {
-            handleSubcategorySelect(subcategories[index])
+            handleSubcategorySelect(subcategories[index], index)
           }
         }
         // Handle 0 key for 10th subcategory
         else if (e.key === '0') {
           if (subcategories[9]) {
-            handleSubcategorySelect(subcategories[9])
+            handleSubcategorySelect(subcategories[9], 9)
           }
         }
       }
@@ -200,18 +209,29 @@ export function CategoryPicker({
         <div className={`grid grid-rows-6 grid-flow-col gap-2 flex-1 content-start transition-opacity duration-150 ${isAnimating ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
           {mainCategories.map((category, index) => {
             const keyHint = index === 9 ? '0' : (index + 1).toString()
+            const isHighlighted = highlightedIndex === index
             return (
               <button
                 key={category.id}
                 onClick={() => handleMainCategorySelect(category, index)}
-                className="relative w-full h-12 bg-zinc-800/50 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-emerald-500/50 rounded-lg px-3 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                className={`relative w-full h-12 border rounded-lg px-3 transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${
+                  isHighlighted
+                    ? 'bg-emerald-500/20 border-emerald-500 scale-[1.02] ring-2 ring-emerald-500/50'
+                    : 'bg-zinc-800/50 hover:bg-zinc-800/80 border-zinc-700/50 hover:border-emerald-500/50'
+                }`}
                 aria-label={`${category.name} - Press ${keyHint}`}
               >
                 <div className="flex items-center gap-2.5 h-full">
-                  <span className="shrink-0 text-sm font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 w-6 h-6 flex items-center justify-center rounded">
+                  <span className={`shrink-0 text-sm font-mono w-6 h-6 flex items-center justify-center rounded transition-colors ${
+                    isHighlighted
+                      ? 'text-emerald-300 bg-emerald-500/30 border border-emerald-400'
+                      : 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
+                  }`}>
                     {keyHint}
                   </span>
-                  <span className="text-sm text-zinc-200 truncate">{category.name}</span>
+                  <span className={`text-sm truncate transition-colors ${isHighlighted ? 'text-white' : 'text-zinc-200'}`}>
+                    {category.name}
+                  </span>
                 </div>
               </button>
             )
@@ -237,18 +257,29 @@ export function CategoryPicker({
         <div className="grid grid-rows-6 grid-flow-col gap-2 flex-1 content-start animate-in fade-in slide-in-from-left-2 duration-200">
           {subcategories.map((category, index) => {
             const keyHint = index === 9 ? '0' : (index + 1).toString()
+            const isHighlighted = highlightedIndex === index
             return (
               <button
                 key={category.id}
-                onClick={() => handleSubcategorySelect(category)}
-                className="relative w-full h-12 bg-zinc-800/50 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-teal-500/50 rounded-lg px-3 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                onClick={() => handleSubcategorySelect(category, index)}
+                className={`relative w-full h-12 border rounded-lg px-3 transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${
+                  isHighlighted
+                    ? 'bg-teal-500/20 border-teal-500 scale-[1.02] ring-2 ring-teal-500/50'
+                    : 'bg-zinc-800/50 hover:bg-zinc-800/80 border-zinc-700/50 hover:border-teal-500/50'
+                }`}
                 aria-label={`${category.name} - Press ${keyHint}`}
               >
                 <div className="flex items-center gap-2.5 h-full">
-                  <span className="shrink-0 text-sm font-mono text-teal-400 bg-teal-500/10 border border-teal-500/20 w-6 h-6 flex items-center justify-center rounded">
+                  <span className={`shrink-0 text-sm font-mono w-6 h-6 flex items-center justify-center rounded transition-colors ${
+                    isHighlighted
+                      ? 'text-teal-300 bg-teal-500/30 border border-teal-400'
+                      : 'text-teal-400 bg-teal-500/10 border border-teal-500/20'
+                  }`}>
                     {keyHint}
                   </span>
-                  <span className="text-sm text-zinc-200 truncate">{category.name}</span>
+                  <span className={`text-sm truncate transition-colors ${isHighlighted ? 'text-white' : 'text-zinc-200'}`}>
+                    {category.name}
+                  </span>
                 </div>
               </button>
             )
@@ -272,22 +303,18 @@ export function CategoryPicker({
 
       {/* Keyboard hints */}
       <div className="mt-auto pt-3 border-t border-zinc-800/50">
-        <div className="flex items-center justify-center gap-3 text-xs text-zinc-500">
-          <div className="flex items-center gap-1">
-            <kbd className="px-1.5 py-0.5 bg-zinc-800/50 border border-zinc-700/50 rounded text-[10px] font-mono">←</kbd>
-            <span>Prev</span>
-          </div>
+        <div className="flex items-center justify-center gap-4 text-xs text-zinc-500">
           <div className="flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 bg-zinc-800/50 border border-zinc-700/50 rounded text-[10px] font-mono">Del</kbd>
             <span>Skip</span>
           </div>
           <div className="flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 bg-zinc-800/50 border border-zinc-700/50 rounded text-[10px] font-mono">→</kbd>
-            <span>Save</span>
+            <span>Save & Next</span>
           </div>
           <div className="flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 bg-zinc-800/50 border border-zinc-700/50 rounded text-[10px] font-mono">⏎</kbd>
-            <span>Open</span>
+            <span>Open Link</span>
           </div>
         </div>
       </div>

@@ -25,17 +25,21 @@ interface CategorizeWrapperProps {
 
 export function CategorizeWrapper({
   categories,
-  bookmarks,
+  bookmarks: initialBookmarks,
   initialIndex = 0,
   onIndexChange,
   onSkip,
 }: CategorizeWrapperProps) {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex)
+  // Track bookmarks locally so we can remove categorized ones
+  const [bookmarks, setBookmarks] = useState(initialBookmarks)
+  const [currentIndex, setCurrentIndex] = useState(0) // Always start at 0 since bookmarks array only has uncategorized
   const [selectedPairs, setSelectedPairs] = useState<CategoryPair[]>([])
   const [isShaking, setIsShaking] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [isSkipFlashing, setIsSkipFlashing] = useState(false)
   const [isNotesVisible, setIsNotesVisible] = useState(false)
+  // Track IDs categorized/skipped this session (for undo scenarios)
+  const [processedIds, setProcessedIds] = useState<Set<string>>(new Set())
 
   const currentBookmark = bookmarks[currentIndex]
   const totalCount = bookmarks.length
@@ -50,20 +54,12 @@ export function CategorizeWrapper({
     setSelectedPairs(pairs)
   }, [])
 
-  // Save position to settings table
-  const savePosition = useCallback(async (index: number) => {
-    try {
-      await fetch('/api/settings/position', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ index }),
-      })
-    } catch (error) {
-      console.error('Failed to save position:', error)
-    }
-  }, [])
+  // Position tracking removed - we now remove processed bookmarks from the queue
+  // On refresh, server fetches only uncategorized bookmarks, so we always start fresh
 
   const moveToNext = useCallback(async () => {
+    if (!currentBookmark) return
+
     if (selectedPairs.length === 0) {
       // Shake animation when no category selected
       setIsShaking(true)
@@ -71,54 +67,45 @@ export function CategorizeWrapper({
       return
     }
 
-    // Save categorization to Supabase
-    if (currentBookmark) {
-      // Collect all category IDs (both main and sub from each pair)
-      const categoryIds = selectedPairs.flatMap(pair => [pair.main.id, pair.sub.id])
+    // Collect all category IDs (both main and sub from each pair)
+    const categoryIds = selectedPairs.flatMap(pair => [pair.main.id, pair.sub.id])
 
-      try {
-        await fetch('/api/bookmarks/categorize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            bookmarkId: currentBookmark.id,
-            categoryIds,
-          }),
-        })
-      } catch (error) {
-        console.error('Failed to save categorization:', error)
+    try {
+      await fetch('/api/bookmarks/categorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookmarkId: currentBookmark.id,
+          categoryIds,
+        }),
+      })
+    } catch (error) {
+      console.error('Failed to save categorization:', error)
+    }
+
+    // Track as processed and remove from local array
+    setProcessedIds(prev => new Set(prev).add(currentBookmark.id))
+    setBookmarks(prev => {
+      const remaining = prev.filter(b => b.id !== currentBookmark.id)
+      // Check if this was the last bookmark
+      if (remaining.length === 0) {
+        setIsComplete(true)
       }
-    }
+      return remaining
+    })
 
-    if (isAtEnd) {
-      // Show completion state and reset position to 0
-      setIsComplete(true)
-      savePosition(0)
-      return
-    }
-
-    // Clear selected pairs and hide notes for next bookmark
+    // Clear selected pairs and hide notes
     setSelectedPairs([])
     setIsNotesVisible(false)
-    const newIndex = currentIndex + 1
-    setCurrentIndex(newIndex)
-    onIndexChange?.(newIndex)
-    savePosition(newIndex)
-  }, [selectedPairs, currentBookmark, isAtEnd, currentIndex, onIndexChange, savePosition])
+    // Index stays at 0 since we removed the current bookmark
+    // (next bookmark slides into position 0)
+  }, [selectedPairs, currentBookmark])
 
+  // Going back is disabled - processed bookmarks are removed from the queue
+  // Use Browse page to review categorized bookmarks
   const moveToPrevious = useCallback(() => {
-    if (isAtStart) {
-      return
-    }
-
-    // Clear selected pairs and hide notes when going back
-    setSelectedPairs([])
-    setIsNotesVisible(false)
-    const newIndex = currentIndex - 1
-    setCurrentIndex(newIndex)
-    onIndexChange?.(newIndex)
-    savePosition(newIndex)
-  }, [isAtStart, currentIndex, onIndexChange, savePosition])
+    // No-op - can't go back once bookmarks are processed
+  }, [])
 
   const toggleNotes = useCallback(() => {
     setIsNotesVisible(prev => !prev)
@@ -145,20 +132,21 @@ export function CategorizeWrapper({
       console.error('Failed to skip bookmark:', error)
     }
 
+    // Track as processed and remove from local array
+    setProcessedIds(prev => new Set(prev).add(currentBookmark.id))
+    setBookmarks(prev => {
+      const remaining = prev.filter(b => b.id !== currentBookmark.id)
+      // Check if this was the last bookmark
+      if (remaining.length === 0) {
+        setIsComplete(true)
+      }
+      return remaining
+    })
+
     // Clear selected pairs
     setSelectedPairs([])
-
-    // Move to next bookmark or show completion
-    if (isAtEnd) {
-      setIsComplete(true)
-      savePosition(0)
-    } else {
-      const newIndex = currentIndex + 1
-      setCurrentIndex(newIndex)
-      onIndexChange?.(newIndex)
-      savePosition(newIndex)
-    }
-  }, [currentBookmark, onSkip, isAtEnd, currentIndex, onIndexChange, savePosition])
+    // Index stays the same since we removed current bookmark
+  }, [currentBookmark, onSkip])
 
   // Open current bookmark in new tab
   const openLink = useCallback(() => {
@@ -178,9 +166,6 @@ export function CategorizeWrapper({
       if (e.key === 'ArrowRight') {
         e.preventDefault()
         moveToNext()
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault()
-        moveToPrevious()
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault()
         handleSkip()
@@ -195,18 +180,9 @@ export function CategorizeWrapper({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [moveToNext, moveToPrevious, handleSkip, toggleNotes, openLink])
+  }, [moveToNext, handleSkip, toggleNotes, openLink])
 
-  // Show empty state
-  if (totalCount === 0) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-zinc-400">No bookmarks to categorize</p>
-      </div>
-    )
-  }
-
-  // Show completion state
+  // Show completion state (check first - user processed all bookmarks this session)
   if (isComplete) {
     return (
       <div className="text-center py-12">
@@ -217,6 +193,15 @@ export function CategorizeWrapper({
         </div>
         <h3 className="text-xl font-medium text-zinc-100 mb-2">All bookmarks categorized!</h3>
         <p className="text-zinc-400">Great job! You can now browse your organized collection.</p>
+      </div>
+    )
+  }
+
+  // Show empty state (no bookmarks were loaded from server)
+  if (totalCount === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-zinc-400">No bookmarks to categorize</p>
       </div>
     )
   }
