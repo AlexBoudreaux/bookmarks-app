@@ -629,3 +629,29 @@ Started: 2026-01-22
 - E2E test fixtures should include boundary markers (Tools/byebyepaywall.com) to test full import flow
 
 ---
+
+## 2026-01-23 - E2E-002
+- Implemented E2E test for categorization flow using Playwright
+- Created test file e2e/categorize.spec.ts with 5 test cases
+- Seeds database with test bookmark and uses existing seeded categories
+- Tests keyboard shortcuts for category selection (1 key), subcategory selection (1 key), and navigation (ArrowRight)
+- Verifies bookmark is marked as categorized in database with correct category junction records
+- Tests skip functionality with Delete key
+- Tests completion screen display after categorizing last bookmark
+- Tests that navigation is blocked (bookmark visible) when no category selected
+- All 9 E2E tests pass, all 174 unit tests pass, build succeeds
+
+**Files changed:**
+- e2e/categorize.spec.ts (created)
+- playwright.config.ts (updated to load dotenv)
+- package.json (added dotenv as devDependency)
+
+**Learnings:**
+- Playwright tests running in parallel can conflict on database operations. Use `test.describe.configure({ mode: 'serial' })` for tests that modify shared database state
+- Generate unique URLs per test using test title and timestamp to avoid unique constraint violations
+- Use dotenv in playwright.config.ts to load environment variables for Supabase client
+- Clean up test data in beforeEach (not just afterEach) to handle failed previous runs
+- Test database operations: insert test data, run UI interactions, query database to verify changes
+- beforeEach hook receives testInfo as second argument to access test metadata like title
+
+---
