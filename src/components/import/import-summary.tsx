@@ -18,6 +18,7 @@ interface ImportSummaryProps {
   tweetCount: number;
   boundaryFound: boolean;
   onStartCategorizing: () => void;
+  isImporting?: boolean;
 }
 
 function formatNumber(num: number): string {
@@ -32,6 +33,7 @@ export function ImportSummary({
   tweetCount,
   boundaryFound,
   onStartCategorizing,
+  isImporting = false,
 }: ImportSummaryProps) {
   const nonTweetCount = toCategorizeCount - tweetCount;
 
@@ -136,11 +138,21 @@ export function ImportSummary({
           {/* Action Button */}
           <Button
             onClick={onStartCategorizing}
+            disabled={isImporting}
             className="group w-full gap-2 py-6 text-base font-semibold"
             size="lg"
           >
-            Start Categorizing
-            <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+            {isImporting ? (
+              <>
+                Importing...
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              </>
+            ) : (
+              <>
+                Start Categorizing
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </>
+            )}
           </Button>
         </div>
       </DialogContent>

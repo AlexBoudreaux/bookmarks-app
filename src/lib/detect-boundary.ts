@@ -1,9 +1,10 @@
-import type { Bookmark } from './parse-bookmarks'
+import type { Bookmark, ParsedBookmark } from './parse-bookmarks'
 
 export interface BoundaryResult {
   boundaryFound: boolean
   keeperCount: number
   toCategorizeCount: number
+  bookmarks: ParsedBookmark[]
 }
 
 /**
@@ -14,7 +15,7 @@ export interface BoundaryResult {
  * is considered a "keeper", and everything after is "to categorize".
  *
  * @param bookmarks - Array of parsed bookmarks
- * @returns BoundaryResult with counts and whether boundary was found
+ * @returns BoundaryResult with counts, whether boundary was found, and bookmarks with isKeeper flag
  */
 export function detectBoundary(bookmarks: Bookmark[]): BoundaryResult {
   if (bookmarks.length === 0) {
@@ -22,6 +23,7 @@ export function detectBoundary(bookmarks: Bookmark[]): BoundaryResult {
       boundaryFound: false,
       keeperCount: 0,
       toCategorizeCount: 0,
+      bookmarks: [],
     }
   }
 
@@ -45,16 +47,26 @@ export function detectBoundary(bookmarks: Bookmark[]): BoundaryResult {
   }
 
   if (boundaryIndex === -1) {
+    // No boundary found, all bookmarks are to categorize
+    const bookmarksWithKeeper = bookmarks.map(b => ({ ...b, isKeeper: false }))
     return {
       boundaryFound: false,
       keeperCount: 0,
       toCategorizeCount: bookmarks.length,
+      bookmarks: bookmarksWithKeeper,
     }
   }
+
+  // Apply isKeeper flag based on boundary
+  const bookmarksWithKeeper = bookmarks.map((b, i) => ({
+    ...b,
+    isKeeper: i <= boundaryIndex,
+  }))
 
   return {
     boundaryFound: true,
     keeperCount: boundaryIndex + 1, // Include the boundary bookmark itself
     toCategorizeCount: bookmarks.length - (boundaryIndex + 1),
+    bookmarks: bookmarksWithKeeper,
   }
 }

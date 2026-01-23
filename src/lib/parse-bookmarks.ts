@@ -6,6 +6,11 @@ export interface Bookmark {
   isTweet: boolean
 }
 
+// Extended bookmark type with isKeeper flag (set after boundary detection)
+export interface ParsedBookmark extends Bookmark {
+  isKeeper: boolean
+}
+
 /**
  * Parses Chrome's Netscape bookmark format HTML and extracts bookmarks
  * with their metadata and folder structure.

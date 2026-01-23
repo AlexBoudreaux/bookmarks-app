@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Upload } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { parseBookmarksHtml } from '@/lib/parse-bookmarks';
+import { parseBookmarksHtml, type ParsedBookmark } from '@/lib/parse-bookmarks';
 import { detectBoundary } from '@/lib/detect-boundary';
 import { ImportSummary } from './import-summary';
 
@@ -11,6 +11,7 @@ export function Dropzone() {
   const router = useRouter();
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState({
     keeperCount: 0,
@@ -18,6 +19,8 @@ export function Dropzone() {
     tweetCount: 0,
     boundaryFound: false,
   });
+  // Store parsed bookmarks for import
+  const parsedBookmarksRef = useRef<ParsedBookmark[]>([]);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -46,6 +49,9 @@ export function Dropzone() {
 
       // Count tweets
       const tweetCount = bookmarks.filter((b) => b.isTweet).length;
+
+      // Store bookmarks with keeper flag applied
+      parsedBookmarksRef.current = boundary.bookmarks;
 
       setSummaryData({
         keeperCount: boundary.keeperCount,
@@ -89,8 +95,35 @@ export function Dropzone() {
     [handleFile]
   );
 
-  const handleStartCategorizing = useCallback(() => {
-    router.push('/categorize');
+  const handleStartCategorizing = useCallback(async () => {
+    if (parsedBookmarksRef.current.length === 0) {
+      console.error('No bookmarks to import');
+      return;
+    }
+
+    setIsImporting(true);
+
+    try {
+      // Import bookmarks to database
+      const response = await fetch('/api/bookmarks/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookmarks: parsedBookmarksRef.current }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to import bookmarks');
+      }
+
+      // Navigate to categorize page
+      router.push('/categorize');
+    } catch (error) {
+      console.error('Import failed:', error);
+      // TODO: Show error toast
+    } finally {
+      setIsImporting(false);
+    }
   }, [router]);
 
   return (
@@ -220,6 +253,7 @@ export function Dropzone() {
         tweetCount={summaryData.tweetCount}
         boundaryFound={summaryData.boundaryFound}
         onStartCategorizing={handleStartCategorizing}
+        isImporting={isImporting}
       />
     </>
   );
