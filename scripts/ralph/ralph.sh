@@ -38,10 +38,10 @@ run_claude() {
 
   echo "🔍 Running Claude (attempt $attempt)..."
 
-  # Use stream-json to detect completion before hang
+  # Use stream-json with verbose to detect completion before hang
   # See: https://github.com/anthropics/claude-code/issues/19060
   cat "$SCRIPT_DIR/prompt.md" | \
-    claude --dangerously-skip-permissions --output-format stream-json 2>&1 > "$temp_output" &
+    claude --dangerously-skip-permissions -p --output-format stream-json --verbose 2>&1 > "$temp_output" &
   local claude_pid=$!
 
   echo "   Claude PID: $claude_pid"
