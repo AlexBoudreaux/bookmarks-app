@@ -408,3 +408,37 @@ Started: 2026-01-22
 - Dark theme with zinc color palette and emerald accent links
 
 ---
+
+## 2026-01-23 - CAT-006
+- Implemented arrow key navigation between bookmarks in categorize flow
+- Restructured CategorizeWrapper to manage bookmark navigation state
+- Right arrow (→) moves to next bookmark when category is selected
+- Left arrow (←) moves to previous bookmark
+- Added shake animation when trying to navigate without category selected
+- CategoryPicker now supports controlled selectedPairs prop for external state management
+- Added completion state when all bookmarks are categorized
+- All 98 tests passing, build passes with no errors
+
+**Files changed:**
+- src/components/categorize/categorize-wrapper.tsx (major refactor - added navigation state)
+- src/components/categorize/categorize-wrapper.test.tsx (created - 10 navigation tests)
+- src/components/categorize/category-picker.tsx (updated - controlled props support)
+- src/app/categorize/page.tsx (updated - passes bookmarks to wrapper)
+- src/app/categorize/page.test.tsx (updated - mocks CategorizeWrapper)
+- src/app/globals.css (added shake animation keyframes)
+
+**Learnings:**
+- Controlled component pattern: Parent manages state, child receives via props and calls onChange
+- useCallback for handlers passed to useEffect dependencies prevents infinite loops
+- State machine reset: When controlled pairs cleared, reset internal picker state too
+- Shake animation: CSS keyframes with 0.4s duration, alternating translateX offsets
+- Server components fetch data, client components handle navigation state
+- Test keyboard events with userEvent.keyboard('{ArrowRight}') for special keys
+
+**Architecture decisions:**
+- CategorizeWrapper now owns: currentIndex, selectedPairs, isShaking, isComplete states
+- CategoryPicker supports both controlled (parent manages pairs) and uncontrolled modes
+- Bookmarks array passed from server component to client wrapper for navigation
+- Preloading optimization deferred to future iteration (performance enhancement)
+
+---

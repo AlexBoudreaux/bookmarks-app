@@ -1,23 +1,166 @@
 'use client'
 
+import { useState, useEffect, useCallback } from 'react'
 import { CategoryPicker } from './category-picker'
+import { TweetPreview } from './tweet-preview'
+import { LinkCard } from './link-card'
 import { Database } from '@/types/database'
 
 type Category = Database['public']['Tables']['categories']['Row']
+type Bookmark = Database['public']['Tables']['bookmarks']['Row']
+
+interface CategoryPair {
+  main: Category
+  sub: Category
+}
 
 interface CategorizeWrapperProps {
   categories: Category[]
+  bookmarks: Bookmark[]
+  initialIndex?: number
+  onIndexChange?: (index: number) => void
 }
 
-export function CategorizeWrapper({ categories }: CategorizeWrapperProps) {
-  const handleSelectCategory = (category: Category) => {
+export function CategorizeWrapper({
+  categories,
+  bookmarks,
+  initialIndex = 0,
+  onIndexChange,
+}: CategorizeWrapperProps) {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex)
+  const [selectedPairs, setSelectedPairs] = useState<CategoryPair[]>([])
+  const [isShaking, setIsShaking] = useState(false)
+  const [isComplete, setIsComplete] = useState(false)
+
+  const currentBookmark = bookmarks[currentIndex]
+  const totalCount = bookmarks.length
+  const isAtStart = currentIndex === 0
+  const isAtEnd = currentIndex >= totalCount - 1
+
+  const handleSelectCategory = useCallback((category: Category) => {
     console.log('Selected category:', category.name)
+  }, [])
+
+  const handleSelectedPairsChange = useCallback((pairs: CategoryPair[]) => {
+    setSelectedPairs(pairs)
+  }, [])
+
+  const moveToNext = useCallback(() => {
+    if (selectedPairs.length === 0) {
+      // Shake animation when no category selected
+      setIsShaking(true)
+      setTimeout(() => setIsShaking(false), 500)
+      return
+    }
+
+    if (isAtEnd) {
+      // Show completion state
+      setIsComplete(true)
+      return
+    }
+
+    // Clear selected pairs for next bookmark
+    setSelectedPairs([])
+    const newIndex = currentIndex + 1
+    setCurrentIndex(newIndex)
+    onIndexChange?.(newIndex)
+  }, [selectedPairs.length, isAtEnd, currentIndex, onIndexChange])
+
+  const moveToPrevious = useCallback(() => {
+    if (isAtStart) {
+      return
+    }
+
+    // Clear selected pairs when going back
+    setSelectedPairs([])
+    const newIndex = currentIndex - 1
+    setCurrentIndex(newIndex)
+    onIndexChange?.(newIndex)
+  }, [isAtStart, currentIndex, onIndexChange])
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle if typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        moveToNext()
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        moveToPrevious()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [moveToNext, moveToPrevious])
+
+  // Show empty state
+  if (totalCount === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-zinc-400">No bookmarks to categorize</p>
+      </div>
+    )
+  }
+
+  // Show completion state
+  if (isComplete) {
+    return (
+      <div className="text-center py-12">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-500/10 mb-6">
+          <svg className="w-10 h-10 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-medium text-zinc-100 mb-2">All bookmarks categorized!</h3>
+        <p className="text-zinc-400">Great job! You can now browse your organized collection.</p>
+      </div>
+    )
   }
 
   return (
-    <CategoryPicker
-      categories={categories}
-      onSelect={handleSelectCategory}
-    />
+    <div>
+      {/* Progress indicator */}
+      <div className="flex items-center justify-between mb-6 text-sm">
+        <span className="text-zinc-600">Progress</span>
+        <div className="font-mono">
+          <span className="text-zinc-100">{currentIndex + 1}</span>
+          <span className="text-zinc-600 mx-1">of</span>
+          <span className="text-zinc-400">{totalCount}</span>
+        </div>
+      </div>
+
+      {/* Bookmark preview */}
+      <div className="mb-8">
+        <div className="relative group">
+          {/* Decorative background glow */}
+          <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 rounded-3xl blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+
+          <div className="relative bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-2xl p-12">
+            {currentBookmark && currentBookmark.is_tweet ? (
+              <TweetPreview url={currentBookmark.url} />
+            ) : currentBookmark ? (
+              <LinkCard title={currentBookmark.title || ''} url={currentBookmark.url} />
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      {/* Category picker */}
+      <div className="relative">
+        <CategoryPicker
+          categories={categories}
+          onSelect={handleSelectCategory}
+          selectedPairs={selectedPairs}
+          onSelectedPairsChange={handleSelectedPairsChange}
+          isShaking={isShaking}
+        />
+      </div>
+    </div>
   )
 }

@@ -15,13 +15,33 @@ interface CategoryPair {
 interface CategoryPickerProps {
   categories: Category[]
   onSelect: (category: Category) => void
-  selectedId?: string
+  selectedPairs?: CategoryPair[]
+  onSelectedPairsChange?: (pairs: CategoryPair[]) => void
+  isShaking?: boolean
 }
 
-export function CategoryPicker({ categories, onSelect }: CategoryPickerProps) {
+export function CategoryPicker({
+  categories,
+  onSelect,
+  selectedPairs: controlledPairs,
+  onSelectedPairsChange,
+  isShaking = false,
+}: CategoryPickerProps) {
   const [state, setState] = useState<PickerState>('main')
   const [selectedMain, setSelectedMain] = useState<Category | null>(null)
-  const [selectedPairs, setSelectedPairs] = useState<CategoryPair[]>([])
+
+  // Use controlled pairs if provided, otherwise manage internally
+  const [internalPairs, setInternalPairs] = useState<CategoryPair[]>([])
+  const selectedPairs = controlledPairs ?? internalPairs
+  const setSelectedPairs = onSelectedPairsChange ?? setInternalPairs
+
+  // Reset state when controlled pairs are cleared (navigation happened)
+  useEffect(() => {
+    if (controlledPairs?.length === 0) {
+      setState('main')
+      setSelectedMain(null)
+    }
+  }, [controlledPairs])
 
   // Get main categories (no parent)
   const mainCategories = categories
@@ -58,6 +78,11 @@ export function CategoryPicker({ categories, onSelect }: CategoryPickerProps) {
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
+      // Don't handle if typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
       if (state === 'main') {
         // Handle 1-9 keys for main categories
         if (e.key >= '1' && e.key <= '9') {
@@ -98,8 +123,10 @@ export function CategoryPicker({ categories, onSelect }: CategoryPickerProps) {
     return () => window.removeEventListener('keydown', handleKeyPress)
   }, [state, mainCategories, subcategories, selectedMain, selectedPairs])
 
+  const shakeClass = isShaking ? 'animate-shake' : ''
+
   return (
-    <div className="bg-zinc-900/30 backdrop-blur-sm border border-zinc-800/50 rounded-2xl p-8">
+    <div className={`bg-zinc-900/30 backdrop-blur-sm border border-zinc-800/50 rounded-2xl p-8 ${shakeClass}`}>
       {/* Show selected category pairs as chips */}
       {selectedPairs.length > 0 && (
         <div className="mb-6">

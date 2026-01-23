@@ -1,7 +1,5 @@
 import { supabase } from '@/lib/supabase'
 import { CategorizeWrapper } from '@/components/categorize/categorize-wrapper'
-import { TweetPreview } from '@/components/categorize/tweet-preview'
-import { LinkCard } from '@/components/categorize/link-card'
 
 export default async function CategorizePage() {
   // Fetch uncategorized bookmarks with full data
@@ -13,16 +11,13 @@ export default async function CategorizePage() {
     .eq('is_skipped', false)
     .order('add_date', { ascending: true })
 
-  // Fetch main categories (parent_id IS NULL)
+  // Fetch all categories (main and sub)
   const { data: categories, error: categoriesError } = await supabase
     .from('categories')
     .select('*')
-    .is('parent_id', null)
     .order('usage_count', { ascending: false })
 
   const totalCount = bookmarks?.length || 0
-  const currentIndex = 0 // Will be dynamic later
-  const currentBookmark = bookmarks?.[currentIndex]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
@@ -33,18 +28,16 @@ export default async function CategorizePage() {
             <button className="text-zinc-400 hover:text-zinc-100 transition-colors text-sm font-medium">
               ← Back
             </button>
-            <div className="text-sm font-mono">
-              <span className="text-zinc-400">{currentIndex + 1}</span>
-              <span className="text-zinc-600 mx-2">of</span>
-              <span className="text-zinc-400">{totalCount}</span>
+            <div className="text-sm font-mono text-zinc-400">
+              Categorize Bookmarks
             </div>
           </div>
 
-          {/* Progress Bar */}
+          {/* Progress Bar - now managed by CategorizeWrapper */}
           <div className="relative h-1 bg-zinc-900/50 rounded-full overflow-hidden">
             <div
               className="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500 ease-out"
-              style={{ width: totalCount > 0 ? `${((currentIndex + 1) / totalCount) * 100}%` : '0%' }}
+              style={{ width: '0%' }}
             >
               <div className="absolute inset-0 bg-white/20 animate-pulse" />
             </div>
@@ -53,40 +46,13 @@ export default async function CategorizePage() {
       </header>
 
       {/* Main Content */}
-      <main className="pt-28 pb-32">
+      <main className="pt-28 pb-8">
         <div className="max-w-5xl mx-auto px-6">
-          {/* Bookmark Preview Area */}
-          <div className="mb-8">
-            <div className="relative group">
-              {/* Decorative background glow */}
-              <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 rounded-3xl blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-
-              <div className="relative bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-2xl p-12">
-                {currentBookmark && currentBookmark.is_tweet ? (
-                  <TweetPreview url={currentBookmark.url} />
-                ) : currentBookmark ? (
-                  <LinkCard title={currentBookmark.title || ''} url={currentBookmark.url} />
-                ) : (
-                  <div className="text-center min-h-[500px] flex items-center justify-center">
-                    <div>
-                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-zinc-800/50 mb-6">
-                        <svg className="w-10 h-10 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-xl font-medium text-zinc-400 mb-2">No bookmarks to categorize</h3>
-                      <p className="text-sm text-zinc-600">Import bookmarks to get started</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Category Picker */}
-          <div className="relative">
-            <CategorizeWrapper categories={categories || []} />
-          </div>
+          <CategorizeWrapper
+            categories={categories || []}
+            bookmarks={bookmarks || []}
+            initialIndex={0}
+          />
         </div>
       </main>
     </div>
