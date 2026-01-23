@@ -300,7 +300,7 @@
       ],
       "priority": 31,
       "dependsOn": ["IMP-005"],
-      "done": false
+      "done": true
     },
     {
       "id": "E2E-002",

@@ -607,3 +607,25 @@ Started: 2026-01-22
 - Position clamped to max valid index if saved position exceeds bookmark count
 
 ---
+
+## 2026-01-23 - E2E-001
+- Implemented E2E test for import flow using Playwright
+- Created sample bookmarks HTML fixture in e2e/fixtures/sample-bookmarks.html
+- Test covers 4 scenarios: dropzone display, import summary modal, navigation to categorize, boundary not found alert
+- Fixture contains 10 bookmarks with boundary at byebyepaywall.com in Tools folder
+- 5 keepers (before boundary), 5 to categorize (3 tweets, 2 links)
+- All 4 E2E tests pass, all 174 unit tests pass, build succeeds
+
+**Files changed:**
+- e2e/import.spec.ts (created)
+- e2e/fixtures/sample-bookmarks.html (created)
+
+**Learnings:**
+- Playwright testDir configured as './e2e' in playwright.config.ts
+- webServer config auto-starts dev server before tests
+- For file input tests, use fileInput.setInputFiles(fixturePath) with path.join(__dirname, ...)
+- When testing dynamic file content, use page.evaluate() with DataTransfer API to simulate file drop
+- Avoid strict mode violations by using .first() or more specific locators when text appears multiple times
+- E2E test fixtures should include boundary markers (Tools/byebyepaywall.com) to test full import flow
+
+---
