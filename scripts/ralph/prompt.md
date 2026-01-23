@@ -77,7 +77,14 @@ pkill -f "dev-browser"
 - Text is readable
 - Interactive elements are visible
 
-### 6. Update Progress
+### 6. Clean Up Context
+
+**IMPORTANT**: If you took screenshots for verification, DO NOT include them in your final response. Clear them from context by:
+- Not referencing the screenshot files in your response
+- Only mentioning "Screenshot verified" without describing the image
+- This prevents "No messages returned" errors
+
+### 7. Update Progress
 Append to `scripts/ralph/progress.txt`:
 ```
 ## [Date] - [Task ID]
@@ -89,16 +96,16 @@ Append to `scripts/ralph/progress.txt`:
 
 If you discovered a reusable pattern, also add it to the **Codebase Patterns** section at the top of progress.txt.
 
-### 7. Update CLAUDE.md
+### 8. Update CLAUDE.md
 If you made a design decision or discovered a rule that future iterations should follow, add it to the appropriate section in `CLAUDE.md`.
 
-### 8. Commit
+### 9. Commit
 ```bash
 git add -A
 git commit -m "feat: [TASK-ID] [brief description]"
 ```
 
-### 9. Mark Complete
+### 10. Mark Complete
 Update `tasks.json`: set `done: true` for the completed task.
 
 ## Important Rules
