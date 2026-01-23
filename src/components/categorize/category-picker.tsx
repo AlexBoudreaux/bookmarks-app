@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Database } from '@/types/database'
 import { NewCategoryModal } from './new-category-modal'
 
@@ -33,6 +33,8 @@ export function CategoryPicker({
   const [state, setState] = useState<PickerState>('main')
   const [selectedMain, setSelectedMain] = useState<Category | null>(null)
   const [isNewCategoryModalOpen, setIsNewCategoryModalOpen] = useState(false)
+  const [isAnimating, setIsAnimating] = useState(false)
+  const [selectedMainIndex, setSelectedMainIndex] = useState<number | null>(null)
 
   // Use controlled pairs if provided, otherwise manage internally
   const [internalPairs, setInternalPairs] = useState<CategoryPair[]>([])
@@ -79,9 +81,15 @@ export function CategoryPicker({
         .slice(0, 10)
     : []
 
-  const handleMainCategorySelect = (category: Category) => {
+  const handleMainCategorySelect = (category: Category, index?: number) => {
     setSelectedMain(category)
-    setState('subcategory')
+    setSelectedMainIndex(index ?? null)
+    setIsAnimating(true)
+    // Small delay for animation
+    setTimeout(() => {
+      setState('subcategory')
+      setIsAnimating(false)
+    }, 150)
     onSelect(category)
   }
 
@@ -112,18 +120,18 @@ export function CategoryPicker({
         return
       }
 
-      if (state === 'main') {
+      if (state === 'main' || state === 'ready') {
         // Handle 1-9 keys for main categories
         if (e.key >= '1' && e.key <= '9') {
           const index = parseInt(e.key) - 1
           if (mainCategories[index]) {
-            handleMainCategorySelect(mainCategories[index])
+            handleMainCategorySelect(mainCategories[index], index)
           }
         }
         // Handle 0 key for 10th main category
         else if (e.key === '0') {
           if (mainCategories[9]) {
-            handleMainCategorySelect(mainCategories[9])
+            handleMainCategorySelect(mainCategories[9], 9)
           }
         }
       } else if (state === 'subcategory') {
@@ -139,11 +147,6 @@ export function CategoryPicker({
           if (subcategories[9]) {
             handleSubcategorySelect(subcategories[9])
           }
-        }
-      } else if (state === 'ready') {
-        // Handle Enter key to add more categories
-        if (e.key === 'Enter') {
-          handleAddMore()
         }
       }
     }
@@ -173,117 +176,103 @@ export function CategoryPicker({
         </div>
       )}
 
-      <div className="text-center mb-3">
-        {state === 'main' && (
+      <div className="text-center mb-4">
+        {(state === 'main' || state === 'ready') && (
           <>
-            <h3 className="text-sm font-medium text-zinc-400 mb-0.5">Categories</h3>
-            <p className="text-xs text-zinc-600">Press 1-9 or 0</p>
+            <h3 className="text-base font-medium text-zinc-300 mb-1">
+              {selectedPairs.length > 0 ? 'Add another?' : 'Select category'}
+            </h3>
+            <p className="text-xs text-zinc-500">Press 1-9 or 0</p>
           </>
         )}
         {state === 'subcategory' && selectedMain && (
           <>
-            <h3 className="text-sm font-medium text-zinc-400 mb-0.5">
-              {selectedMain.name} → Sub
+            <h3 className="text-base font-medium text-zinc-300 mb-1">
+              <span className="text-emerald-400">{selectedMain.name}</span> → Subcategory
             </h3>
-            <p className="text-xs text-zinc-600">Press 1-9 or 0</p>
-          </>
-        )}
-        {state === 'ready' && (
-          <>
-            <h3 className="text-sm font-medium text-zinc-400 mb-0.5">Added</h3>
-            <p className="text-xs text-zinc-600">Enter to add more</p>
+            <p className="text-xs text-zinc-500">Press 1-9 or 0</p>
           </>
         )}
       </div>
 
       {/* Category/Subcategory grid - flows in columns (1-5 left, 6-0 right, New below) */}
       {(state === 'main' || state === 'ready') && (
-        <div className="grid grid-rows-6 grid-flow-col gap-2 flex-1 content-start">
+        <div className={`grid grid-rows-6 grid-flow-col gap-2 flex-1 content-start transition-opacity duration-150 ${isAnimating ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
           {mainCategories.map((category, index) => {
             const keyHint = index === 9 ? '0' : (index + 1).toString()
             return (
-              <div key={category.id} className="relative group/btn">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/30 to-teal-500/30 rounded-lg opacity-0 group-hover/btn:opacity-100 blur-sm transition-all duration-200" />
-                <button
-                  onClick={() => handleMainCategorySelect(category)}
-                  className="relative w-full h-10 bg-zinc-800/50 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-lg px-2 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/5"
-                  aria-label={`${category.name} - Press ${keyHint}`}
-                >
-                  <div className="flex items-center gap-2 h-full">
-                    <span className="shrink-0 text-xs font-mono text-emerald-400/80 bg-emerald-500/10 border border-emerald-500/20 w-5 h-5 flex items-center justify-center rounded">
-                      {keyHint}
-                    </span>
-                    <span className="text-xs text-zinc-300 truncate">{category.name}</span>
-                  </div>
-                </button>
-              </div>
+              <button
+                key={category.id}
+                onClick={() => handleMainCategorySelect(category, index)}
+                className="relative w-full h-12 bg-zinc-800/50 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-emerald-500/50 rounded-lg px-3 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                aria-label={`${category.name} - Press ${keyHint}`}
+              >
+                <div className="flex items-center gap-2.5 h-full">
+                  <span className="shrink-0 text-sm font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 w-6 h-6 flex items-center justify-center rounded">
+                    {keyHint}
+                  </span>
+                  <span className="text-sm text-zinc-200 truncate">{category.name}</span>
+                </div>
+              </button>
             )
           })}
 
           {/* New category button */}
-          <div className="relative group/btn">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-500/20 to-zinc-400/20 rounded-lg opacity-0 group-hover/btn:opacity-100 blur-sm transition-all duration-200" />
-            <button
-              onClick={handleNewCategory}
-              className="relative w-full h-10 bg-zinc-800/30 hover:bg-zinc-800/50 border border-dashed border-zinc-700/50 hover:border-zinc-600 rounded-lg px-2 transition-all duration-200"
-              aria-label="New category - Press -"
-            >
-              <div className="flex items-center gap-2 h-full">
-                <span className="shrink-0 text-xs font-mono text-zinc-500 bg-zinc-800/50 border border-zinc-700/50 w-5 h-5 flex items-center justify-center rounded">
-                  -
-                </span>
-                <span className="text-xs text-zinc-500">New...</span>
-              </div>
-            </button>
-          </div>
+          <button
+            onClick={handleNewCategory}
+            className="relative w-full h-12 bg-zinc-800/30 hover:bg-zinc-800/50 border border-dashed border-zinc-700/50 hover:border-zinc-500 rounded-lg px-3 transition-all duration-200"
+            aria-label="New category - Press -"
+          >
+            <div className="flex items-center gap-2.5 h-full">
+              <span className="shrink-0 text-sm font-mono text-zinc-500 bg-zinc-800/50 border border-zinc-700/50 w-6 h-6 flex items-center justify-center rounded">
+                -
+              </span>
+              <span className="text-sm text-zinc-500">New...</span>
+            </div>
+          </button>
         </div>
       )}
 
       {state === 'subcategory' && (
-        <div className="grid grid-rows-6 grid-flow-col gap-2 flex-1 content-start">
+        <div className="grid grid-rows-6 grid-flow-col gap-2 flex-1 content-start animate-in fade-in slide-in-from-left-2 duration-200">
           {subcategories.map((category, index) => {
             const keyHint = index === 9 ? '0' : (index + 1).toString()
             return (
-              <div key={category.id} className="relative group/btn">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-teal-500/30 to-cyan-500/30 rounded-lg opacity-0 group-hover/btn:opacity-100 blur-sm transition-all duration-200" />
-                <button
-                  onClick={() => handleSubcategorySelect(category)}
-                  className="relative w-full h-10 bg-zinc-800/50 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-lg px-2 transition-all duration-200 hover:shadow-lg hover:shadow-teal-500/5"
-                  aria-label={`${category.name} - Press ${keyHint}`}
-                >
-                  <div className="flex items-center gap-2 h-full">
-                    <span className="shrink-0 text-xs font-mono text-teal-400/80 bg-teal-500/10 border border-teal-500/20 w-5 h-5 flex items-center justify-center rounded">
-                      {keyHint}
-                    </span>
-                    <span className="text-xs text-zinc-300 truncate">{category.name}</span>
-                  </div>
-                </button>
-              </div>
+              <button
+                key={category.id}
+                onClick={() => handleSubcategorySelect(category)}
+                className="relative w-full h-12 bg-zinc-800/50 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-teal-500/50 rounded-lg px-3 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                aria-label={`${category.name} - Press ${keyHint}`}
+              >
+                <div className="flex items-center gap-2.5 h-full">
+                  <span className="shrink-0 text-sm font-mono text-teal-400 bg-teal-500/10 border border-teal-500/20 w-6 h-6 flex items-center justify-center rounded">
+                    {keyHint}
+                  </span>
+                  <span className="text-sm text-zinc-200 truncate">{category.name}</span>
+                </div>
+              </button>
             )
           })}
 
           {/* New subcategory button */}
-          <div className="relative group/btn">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-500/20 to-zinc-400/20 rounded-lg opacity-0 group-hover/btn:opacity-100 blur-sm transition-all duration-200" />
-            <button
-              onClick={handleNewCategory}
-              className="relative w-full h-10 bg-zinc-800/30 hover:bg-zinc-800/50 border border-dashed border-zinc-700/50 hover:border-zinc-600 rounded-lg px-2 transition-all duration-200"
-              aria-label="New subcategory - Press -"
-            >
-              <div className="flex items-center gap-2 h-full">
-                <span className="shrink-0 text-xs font-mono text-zinc-500 bg-zinc-800/50 border border-zinc-700/50 w-5 h-5 flex items-center justify-center rounded">
-                  -
-                </span>
-                <span className="text-xs text-zinc-500">New...</span>
-              </div>
-            </button>
-          </div>
+          <button
+            onClick={handleNewCategory}
+            className="relative w-full h-12 bg-zinc-800/30 hover:bg-zinc-800/50 border border-dashed border-zinc-700/50 hover:border-zinc-500 rounded-lg px-3 transition-all duration-200"
+            aria-label="New subcategory - Press -"
+          >
+            <div className="flex items-center gap-2.5 h-full">
+              <span className="shrink-0 text-sm font-mono text-zinc-500 bg-zinc-800/50 border border-zinc-700/50 w-6 h-6 flex items-center justify-center rounded">
+                -
+              </span>
+              <span className="text-sm text-zinc-500">New...</span>
+            </div>
+          </button>
         </div>
       )}
 
       {/* Keyboard hints */}
       <div className="mt-auto pt-3 border-t border-zinc-800/50">
-        <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
+        <div className="flex items-center justify-center gap-3 text-xs text-zinc-500">
           <div className="flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 bg-zinc-800/50 border border-zinc-700/50 rounded text-[10px] font-mono">←</kbd>
             <span>Prev</span>
@@ -294,7 +283,11 @@ export function CategoryPicker({
           </div>
           <div className="flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 bg-zinc-800/50 border border-zinc-700/50 rounded text-[10px] font-mono">→</kbd>
-            <span>Next</span>
+            <span>Save</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <kbd className="px-1.5 py-0.5 bg-zinc-800/50 border border-zinc-700/50 rounded text-[10px] font-mono">⏎</kbd>
+            <span>Open</span>
           </div>
         </div>
       </div>

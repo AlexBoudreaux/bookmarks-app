@@ -160,6 +160,13 @@ export function CategorizeWrapper({
     }
   }, [currentBookmark, onSkip, isAtEnd, currentIndex, onIndexChange, savePosition])
 
+  // Open current bookmark in new tab
+  const openLink = useCallback(() => {
+    if (currentBookmark?.url) {
+      window.open(currentBookmark.url, '_blank', 'noopener,noreferrer')
+    }
+  }, [currentBookmark])
+
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -180,12 +187,15 @@ export function CategorizeWrapper({
       } else if (e.key === 'n' || e.key === 'N') {
         e.preventDefault()
         toggleNotes()
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        openLink()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [moveToNext, moveToPrevious, handleSkip, toggleNotes])
+  }, [moveToNext, moveToPrevious, handleSkip, toggleNotes, openLink])
 
   // Show empty state
   if (totalCount === 0) {

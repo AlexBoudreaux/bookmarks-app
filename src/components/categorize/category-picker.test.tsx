@@ -116,13 +116,16 @@ describe('CategoryPicker', () => {
       // Press "1" to select UI
       await user.keyboard('1')
 
-      // Should now show subcategories of UI
-      expect(screen.getByText('Landing Pages')).toBeInTheDocument()
+      // Wait for animation to complete and subcategories to show
+      await waitFor(() => {
+        expect(screen.getByText('Landing Pages')).toBeInTheDocument()
+      })
       expect(screen.getByText('Components')).toBeInTheDocument()
       expect(screen.getByText('General UI')).toBeInTheDocument()
 
-      // Should show breadcrumb
-      expect(screen.getByText(/UI → Sub/i)).toBeInTheDocument()
+      // Should show breadcrumb with parent name
+      expect(screen.getByText(/Subcategory/i)).toBeInTheDocument()
+      expect(screen.getByText('UI')).toBeInTheDocument()
     })
 
     it('allows selecting subcategory with keyboard shortcuts', async () => {
@@ -132,6 +135,11 @@ describe('CategoryPicker', () => {
 
       // Select main category UI
       await user.keyboard('1')
+
+      // Wait for subcategory view
+      await waitFor(() => {
+        expect(screen.getByText('Landing Pages')).toBeInTheDocument()
+      })
 
       // Select subcategory "Landing Pages" (should be first)
       await user.keyboard('1')
@@ -147,6 +155,11 @@ describe('CategoryPicker', () => {
       // Select main category UI with keyboard
       await user.keyboard('1')
 
+      // Wait for subcategory view
+      await waitFor(() => {
+        expect(screen.getByText('Components')).toBeInTheDocument()
+      })
+
       // Click on Components subcategory
       const componentsButton = screen.getByRole('button', { name: /Components/ })
       await user.click(componentsButton)
@@ -155,25 +168,25 @@ describe('CategoryPicker', () => {
       expect(screen.getByText(/UI > Components/i)).toBeInTheDocument()
     })
 
-    it('allows adding multiple category pairs with Enter key', async () => {
+    it('allows adding multiple category pairs', async () => {
       const user = userEvent.setup()
       render(<CategoryPicker categories={mockCategoriesWithSubs} onSelect={vi.fn()} />)
 
       // Select first pair: UI > Landing Pages
       await user.keyboard('1') // UI
+      await waitFor(() => {
+        expect(screen.getByText('Landing Pages')).toBeInTheDocument()
+      })
       await user.keyboard('1') // Landing Pages
 
-      // Press Enter to add another pair
-      await user.keyboard('{Enter}')
-
-      // Should still show first chip
+      // Should show first chip
       expect(screen.getByText(/UI > Landing Pages/i)).toBeInTheDocument()
 
-      // Should be back in main categories view
-      expect(screen.getByText('AI Dev')).toBeInTheDocument()
-
-      // Select second pair: AI Dev > Prompts
+      // In ready state, can select another main category directly
       await user.keyboard('2') // AI Dev
+      await waitFor(() => {
+        expect(screen.getByText('Prompts')).toBeInTheDocument()
+      })
       await user.keyboard('1') // Prompts
 
       // Should show both chips
@@ -181,16 +194,19 @@ describe('CategoryPicker', () => {
       expect(screen.getByText(/AI Dev > Prompts/i)).toBeInTheDocument()
     })
 
-    it('shows instruction to press Enter after subcategory selected', async () => {
+    it('shows add another prompt after subcategory selected', async () => {
       const user = userEvent.setup()
       render(<CategoryPicker categories={mockCategoriesWithSubs} onSelect={vi.fn()} />)
 
       // Select UI > Landing Pages
       await user.keyboard('1')
+      await waitFor(() => {
+        expect(screen.getByText('Landing Pages')).toBeInTheDocument()
+      })
       await user.keyboard('1')
 
-      // Should show hint about pressing Enter for more
-      expect(screen.getByText(/Enter to add more/i)).toBeInTheDocument()
+      // Should show prompt to add another category
+      expect(screen.getByText(/Add another/i)).toBeInTheDocument()
     })
   })
 
@@ -224,6 +240,11 @@ describe('CategoryPicker', () => {
       // First select a main category
       await user.keyboard('1')
 
+      // Wait for subcategory view
+      await waitFor(() => {
+        expect(screen.getByText('Landing Pages')).toBeInTheDocument()
+      })
+
       // Press minus key in subcategory view
       await user.keyboard('-')
 
@@ -250,6 +271,11 @@ describe('CategoryPicker', () => {
 
       // First select a main category
       await user.keyboard('1')
+
+      // Wait for subcategory view
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /New subcategory - Press -/ })).toBeInTheDocument()
+      })
 
       // Click the "New..." button for subcategory
       const newButton = screen.getByRole('button', { name: /New subcategory - Press -/ })
@@ -326,6 +352,11 @@ describe('CategoryPicker', () => {
 
       // Select main category first
       await user.keyboard('1')
+
+      // Wait for subcategory view
+      await waitFor(() => {
+        expect(screen.getByText('Landing Pages')).toBeInTheDocument()
+      })
 
       // Open modal for subcategory
       await user.keyboard('-')
