@@ -19,6 +19,8 @@ Started: 2026-01-22
 - API routes: Create in `src/app/api/` with route.ts files exporting named HTTP method functions
 - Domain extraction: Use `extractDomain()` from `@/lib/extract-domain` to normalize URLs
 - Date handling in API routes: Accept both Date objects and ISO strings (JSON serialization converts Dates to strings)
+- State machines: Use string literal union types for states, useState for current state, conditional rendering based on state
+- Category hierarchy: Filter by `parent_id === null` for main categories, `parent_id === mainId` for subcategories
 
 ## Key Files
 
@@ -296,6 +298,39 @@ Started: 2026-01-22
 - Category name changes color to emerald-400 when selected for clear visual feedback
 - Keyboard hints displayed at bottom for navigation (← → Delete)
 - "New category" option always visible with [-] key hint
+
+---
+
+
+## 2026-01-23 - CAT-003
+- Implemented subcategory picker UI with state machine transitions
+- Created state machine with three states: main, subcategory, ready
+- Added keyboard shortcuts for subcategory selection (1-9, 0)
+- Implemented Enter key to return to main categories and add more pairs
+- Display selected category pairs as chips with "MainCat > SubCat" format
+- All 12 tests pass (5 new subcategory tests added)
+- Build passes with no errors
+- Screenshot verified UI transitions correctly between states
+
+**Files changed:**
+- `src/components/categorize/category-picker.tsx` (updated - added state machine)
+- `src/components/categorize/category-picker.test.tsx` (updated - added 5 subcategory tests)
+- `src/components/categorize/categorize-wrapper.tsx` (updated - removed selectedId prop)
+
+**Learnings:**
+- State machine pattern for multi-step UI flows: main -> subcategory -> ready
+- Filter categories by parent_id to get subcategories: `.filter(c => c.parent_id === selectedMain.id)`
+- Store selected category pairs as array of { main, sub } objects
+- Use conditional rendering based on state to show different views
+- Chips displayed using emerald color scheme with "&gt;" HTML entity for ">"
+- Tests should cover all state transitions and keyboard interactions
+- Remove obsolete tests when refactoring (selectedId test no longer applies)
+
+**State machine implementation:**
+- MAIN: Show main categories, 1-9/0 keys select main category, transition to SUBCATEGORY
+- SUBCATEGORY: Show subcategories of selected main, 1-9/0 keys select subcategory, transition to READY
+- READY: Show main categories again, Enter key resets to MAIN to add more pairs
+- Selected pairs accumulate in array and display as chips above the picker
 
 ---
 

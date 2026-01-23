@@ -76,16 +76,6 @@ describe('CategoryPicker', () => {
     expect(onSelect).toHaveBeenCalledWith(mockCategories[9])
   })
 
-  it('highlights selected category', () => {
-    const onSelect = vi.fn()
-
-    render(<CategoryPicker categories={mockCategories} onSelect={onSelect} selectedId="1" />)
-
-    const uiButton = screen.getByRole('button', { name: /UI/ })
-
-    // Check if button has highlight styling
-    expect(uiButton.className).toContain('border-emerald-500')
-  })
 
   it('shows "New category" option with [-] key hint', () => {
     render(<CategoryPicker categories={mockCategories} onSelect={vi.fn()} />)
@@ -98,5 +88,105 @@ describe('CategoryPicker', () => {
     render(<CategoryPicker categories={mockCategories} onSelect={vi.fn()} />)
 
     expect(screen.getByText(/Press 1-9 or 0 to select/)).toBeInTheDocument()
+  })
+
+  describe('Subcategory picker', () => {
+    const mockCategoriesWithSubs = [
+      { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
+      { id: '1a', name: 'Landing Pages', parent_id: '1', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
+      { id: '1b', name: 'Components', parent_id: '1', usage_count: 40, sort_order: 1, created_at: '2024-01-01' },
+      { id: '1c', name: 'General UI', parent_id: '1', usage_count: 30, sort_order: 2, created_at: '2024-01-01' },
+      { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
+      { id: '2a', name: 'Prompts', parent_id: '2', usage_count: 45, sort_order: 0, created_at: '2024-01-01' },
+      { id: '2b', name: 'Agents', parent_id: '2', usage_count: 35, sort_order: 1, created_at: '2024-01-01' },
+    ]
+
+    it('transitions to subcategory view after main category selected', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockCategoriesWithSubs} onSelect={vi.fn()} />)
+
+      // Initially shows main categories
+      expect(screen.getByText('UI')).toBeInTheDocument()
+      expect(screen.getByText('AI Dev')).toBeInTheDocument()
+
+      // Press "1" to select UI
+      await user.keyboard('1')
+
+      // Should now show subcategories of UI
+      expect(screen.getByText('Landing Pages')).toBeInTheDocument()
+      expect(screen.getByText('Components')).toBeInTheDocument()
+      expect(screen.getByText('General UI')).toBeInTheDocument()
+
+      // Should show breadcrumb
+      expect(screen.getByText(/UI → Subcategory/i)).toBeInTheDocument()
+    })
+
+    it('allows selecting subcategory with keyboard shortcuts', async () => {
+      const user = userEvent.setup()
+      const onSelect = vi.fn()
+      render(<CategoryPicker categories={mockCategoriesWithSubs} onSelect={onSelect} />)
+
+      // Select main category UI
+      await user.keyboard('1')
+
+      // Select subcategory "Landing Pages" (should be first)
+      await user.keyboard('1')
+
+      // Should show chip with "UI > Landing Pages"
+      expect(screen.getByText(/UI > Landing Pages/i)).toBeInTheDocument()
+    })
+
+    it('allows clicking subcategory to select', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockCategoriesWithSubs} onSelect={vi.fn()} />)
+
+      // Select main category UI with keyboard
+      await user.keyboard('1')
+
+      // Click on Components subcategory
+      const componentsButton = screen.getByRole('button', { name: /Components/ })
+      await user.click(componentsButton)
+
+      // Should show chip with "UI > Components"
+      expect(screen.getByText(/UI > Components/i)).toBeInTheDocument()
+    })
+
+    it('allows adding multiple category pairs with Enter key', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockCategoriesWithSubs} onSelect={vi.fn()} />)
+
+      // Select first pair: UI > Landing Pages
+      await user.keyboard('1') // UI
+      await user.keyboard('1') // Landing Pages
+
+      // Press Enter to add another pair
+      await user.keyboard('{Enter}')
+
+      // Should still show first chip
+      expect(screen.getByText(/UI > Landing Pages/i)).toBeInTheDocument()
+
+      // Should be back in main categories view
+      expect(screen.getByText('AI Dev')).toBeInTheDocument()
+
+      // Select second pair: AI Dev > Prompts
+      await user.keyboard('2') // AI Dev
+      await user.keyboard('1') // Prompts
+
+      // Should show both chips
+      expect(screen.getByText(/UI > Landing Pages/i)).toBeInTheDocument()
+      expect(screen.getByText(/AI Dev > Prompts/i)).toBeInTheDocument()
+    })
+
+    it('shows instruction to press Enter after subcategory selected', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockCategoriesWithSubs} onSelect={vi.fn()} />)
+
+      // Select UI > Landing Pages
+      await user.keyboard('1')
+      await user.keyboard('1')
+
+      // Should show hint about pressing Enter for more
+      expect(screen.getByText(/Press Enter to add more/i)).toBeInTheDocument()
+    })
   })
 })
