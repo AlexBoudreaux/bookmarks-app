@@ -372,3 +372,39 @@ Started: 2026-01-22
 - Page conditionally renders TweetPreview for tweets, placeholder for non-tweets, empty state for no bookmarks
 
 ---
+
+## 2026-01-23 - CAT-005
+- Implemented bookmark preview for non-tweets using LinkCard component
+- Created LinkCard component in src/components/categorize/link-card.tsx
+- Component displays title, domain (extracted from URL), and full URL as clickable link
+- Uses extractDomain() utility to normalize URLs and remove www. prefix
+- Styled to match TweetPreview height/width with min-h-[500px]
+- Dark theme with emerald accent colors consistent with app aesthetic
+- All 88 tests passing, build passes with no errors
+
+**Files changed:**
+- src/components/categorize/link-card.tsx (created)
+- src/components/categorize/link-card.test.tsx (created)
+- src/app/categorize/page.tsx (updated - integrated LinkCard)
+- src/app/categorize/page.test.tsx (updated - added LinkCard mock and test)
+
+**Learnings:**
+- TDD workflow effective: write failing tests first, implement until passing
+- LinkCard uses lucide-react ExternalLink icon for consistency with design system
+- Component styled to roughly match tweet embed dimensions (min-h-[500px])
+- Conditional rendering in page: TweetPreview for tweets, LinkCard for non-tweets, empty state for no bookmarks
+- Domain extraction utility from extract-domain.ts reused for consistency
+- Added note that OG image previews will come in OG-002 task
+- Tests verify title display, domain extraction, URL link properties, icon presence, and layout
+- Mock LinkCard in page tests to isolate component behavior
+
+**Design decisions:**
+- Centered layout with max-w-2xl for readability
+- ExternalLink icon in circular background for visual consistency
+- Large title (text-2xl) with break-words to handle long titles
+- Domain displayed in monospace font (font-mono) for technical feel
+- URL truncated with max-w-xl to prevent overflow
+- Light note about future OG image support at bottom
+- Dark theme with zinc color palette and emerald accent links
+
+---

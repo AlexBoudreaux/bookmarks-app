@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { CategorizeWrapper } from '@/components/categorize/categorize-wrapper'
 import { TweetPreview } from '@/components/categorize/tweet-preview'
+import { LinkCard } from '@/components/categorize/link-card'
 
 export default async function CategorizePage() {
   // Fetch uncategorized bookmarks with full data
@@ -64,25 +65,7 @@ export default async function CategorizePage() {
                 {currentBookmark && currentBookmark.is_tweet ? (
                   <TweetPreview url={currentBookmark.url} />
                 ) : currentBookmark ? (
-                  <div className="text-center min-h-[500px] flex items-center justify-center">
-                    <div>
-                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-zinc-800/50 mb-6">
-                        <svg className="w-10 h-10 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                        </svg>
-                      </div>
-                      <h3 className="text-xl font-medium text-zinc-300 mb-2">{currentBookmark.title}</h3>
-                      <a
-                        href={currentBookmark.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-emerald-400 hover:text-emerald-300"
-                      >
-                        {currentBookmark.url}
-                      </a>
-                      <p className="text-sm text-zinc-600 mt-4">Link card preview (CAT-005)</p>
-                    </div>
-                  </div>
+                  <LinkCard title={currentBookmark.title || ''} url={currentBookmark.url} />
                 ) : (
                   <div className="text-center min-h-[500px] flex items-center justify-center">
                     <div>

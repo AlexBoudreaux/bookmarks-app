@@ -6,6 +6,16 @@ vi.mock('@/components/categorize/tweet-preview', () => ({
   TweetPreview: ({ url }: { url: string }) => <div data-testid="tweet-preview">{url}</div>,
 }))
 
+// Mock LinkCard component
+vi.mock('@/components/categorize/link-card', () => ({
+  LinkCard: ({ title, url }: { title: string; url: string }) => (
+    <div data-testid="link-card">
+      <div>{title}</div>
+      <div>{url}</div>
+    </div>
+  ),
+}))
+
 // Mock Supabase - needs to return a chainable builder
 const createMockBuilder = (tableName: string) => {
   const builder: any = {
@@ -75,5 +85,33 @@ describe('CategorizePage', () => {
     // Should have a main container with sections for progress, preview, and picker
     const mainElement = container.querySelector('main')
     expect(mainElement).toBeInTheDocument()
+  })
+
+  it('renders LinkCard for non-tweet bookmarks', async () => {
+    // Override mock to return a non-tweet bookmark
+    const { supabase } = await import('@/lib/supabase')
+    const createMockBuilderWithNonTweet = (tableName: string) => {
+      const builder: any = {
+        select: vi.fn(() => builder),
+        eq: vi.fn(() => builder),
+        is: vi.fn(() => builder),
+        order: vi.fn(() => ({
+          data: tableName === 'categories' ? [
+            { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
+          ] : tableName === 'bookmarks' ? [
+            { id: '1', url: 'https://github.com/example/repo', title: 'Example Repo', is_tweet: false, is_categorized: false, is_keeper: false, is_skipped: false },
+          ] : [],
+          error: null,
+        })),
+      }
+      return builder
+    }
+    vi.mocked(supabase.from).mockImplementation((tableName: string) => createMockBuilderWithNonTweet(tableName))
+
+    render(await CategorizePage())
+
+    expect(screen.getByTestId('link-card')).toBeInTheDocument()
+    expect(screen.getByText('Example Repo')).toBeInTheDocument()
+    expect(screen.getByText('https://github.com/example/repo')).toBeInTheDocument()
   })
 })
