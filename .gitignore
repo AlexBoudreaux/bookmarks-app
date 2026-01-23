@@ -43,3 +43,6 @@ next-env.d.ts
 
 # ralph debug logs
 scripts/ralph/debug-*.log
+scripts/ralph/debug-*.json
+scripts/ralph/temp-*.txt
+scripts/ralph/temp-*.json

@@ -29,6 +29,59 @@ fi
 echo "✅ Build passes"
 echo ""
 
+# Function to run Claude with hang detection
+# Returns 0 on success, 1 on failure
+run_claude() {
+  local attempt=$1
+  local debug_log=$2
+  local temp_output="${debug_log%.log}.json"
+
+  echo "🔍 Running Claude (attempt $attempt, log: $debug_log)..."
+
+  # Use stream-json to detect completion before hang
+  # See: https://github.com/anthropics/claude-code/issues/19060
+  cat "$SCRIPT_DIR/prompt.md" | \
+    claude --dangerously-skip-permissions --output-format stream-json 2>&1 > "$temp_output" &
+  local claude_pid=$!
+
+  # Monitor output for completion
+  local result_received=false
+  local timeout_secs=600
+
+  ( tail -f "$temp_output" 2>/dev/null & echo $! > /tmp/tail_pid_$claude_pid ) | \
+  timeout $timeout_secs grep -q '"type":"result"' && result_received=true
+
+  # Kill tail
+  kill $(cat /tmp/tail_pid_$claude_pid 2>/dev/null) 2>/dev/null || true
+  rm -f /tmp/tail_pid_$claude_pid
+
+  if [ "$result_received" = true ]; then
+    # Give Claude 3s to exit cleanly, then kill if hung
+    sleep 3
+    kill $claude_pid 2>/dev/null || true
+    wait $claude_pid 2>/dev/null || true
+  else
+    # Timeout or failure
+    kill $claude_pid 2>/dev/null || true
+    echo "⚠️  Claude did not complete within timeout"
+    return 1
+  fi
+
+  # Parse output for display and save to debug log
+  jq -r 'select(.type == "content_block_delta") | .delta.text' "$temp_output" 2>/dev/null | tr -d '\n' > "$debug_log"
+
+  # Check if output suggests success
+  if grep -q "COMPLETE\|complete\|done\|Task.*complete" "$debug_log" 2>/dev/null; then
+    return 0
+  elif [ ! -s "$debug_log" ]; then
+    # Empty output = likely failure
+    cat "$temp_output" > "$debug_log"
+    return 1
+  fi
+
+  return 0
+}
+
 for i in $(seq 1 $MAX_ITERATIONS); do
   ITER_START=$(date +%s)
   echo "═══════════════════════════════════════════"
@@ -44,53 +97,32 @@ for i in $(seq 1 $MAX_ITERATIONS); do
   fi
   echo ""
 
-  # Run Claude with the prompt and save to debug log
-  DEBUG_LOG="$SCRIPT_DIR/debug-iteration-$i.log"
-  echo "🔍 Running Claude (output: $DEBUG_LOG)..."
-  echo "Iteration $i - $(date)" > "$DEBUG_LOG"
-  echo "Task: $NEXT_TASK" >> "$DEBUG_LOG"
-  echo "---" >> "$DEBUG_LOG"
+  # Try with retries
+  SUCCESS=false
+  for attempt in 1 2 3; do
+    DEBUG_LOG="$SCRIPT_DIR/debug-iteration-$i-attempt-$attempt.log"
 
-  OUTPUT=$(cat "$SCRIPT_DIR/prompt.md" | claude --dangerously-skip-permissions 2>&1 | tee "$DEBUG_LOG" /dev/stderr) || {
-    RETRY_EXIT=$?
-    echo ""
-    echo "⚠️  Iteration $i failed (exit code $RETRY_EXIT)"
-    echo "📄 Last 10 lines of debug log:"
-    tail -10 "$DEBUG_LOG"
-    echo ""
-    echo "🔄 Retry 1 of 2..."
-    echo ""
-
-    # Retry 1
-    DEBUG_LOG_RETRY1="$SCRIPT_DIR/debug-iteration-$i-retry1.log"
-    OUTPUT=$(cat "$SCRIPT_DIR/prompt.md" | claude --dangerously-skip-permissions 2>&1 | tee "$DEBUG_LOG_RETRY1" /dev/stderr) || {
-      RETRY1_EXIT=$?
-      echo ""
-      echo "⚠️  Retry 1 failed (exit code $RETRY1_EXIT)"
-      echo "📄 Last 10 lines of retry1 log:"
-      tail -10 "$DEBUG_LOG_RETRY1"
-      echo ""
-      echo "🔄 Retry 2 of 2..."
-      echo ""
-
-      # Retry 2
-      DEBUG_LOG_RETRY2="$SCRIPT_DIR/debug-iteration-$i-retry2.log"
-      OUTPUT=$(cat "$SCRIPT_DIR/prompt.md" | claude --dangerously-skip-permissions 2>&1 | tee "$DEBUG_LOG_RETRY2" /dev/stderr) || {
-        RETRY2_EXIT=$?
-        echo ""
-        echo "❌ All retries failed"
-        echo "   Exit codes: $RETRY_EXIT, $RETRY1_EXIT, $RETRY2_EXIT"
-        echo "📄 Last 20 lines of final retry log:"
-        tail -20 "$DEBUG_LOG_RETRY2"
-        echo ""
-        echo "   Check debug logs in scripts/ralph/"
-        echo "   Task: $NEXT_TASK"
-        echo ""
+    if run_claude $attempt "$DEBUG_LOG"; then
+      SUCCESS=true
+      OUTPUT=$(cat "$DEBUG_LOG")
+      echo "$OUTPUT"
+      break
+    else
+      echo "❌ Attempt $attempt failed"
+      if [ $attempt -lt 3 ]; then
+        echo "🔄 Retrying..."
         sleep 2
-        continue
-      }
-    }
-  }
+      fi
+    fi
+  done
+
+  if [ "$SUCCESS" = false ]; then
+    echo ""
+    echo "❌ All retries failed for iteration $i"
+    echo "   Task: $NEXT_TASK"
+    echo ""
+    continue
+  fi
 
   # Check for completion
   if echo "$OUTPUT" | grep -q "<promise>COMPLETE</promise>"; then
