@@ -1,6 +1,11 @@
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// Mock TweetPreview component
+vi.mock('@/components/categorize/tweet-preview', () => ({
+  TweetPreview: ({ url }: { url: string }) => <div data-testid="tweet-preview">{url}</div>,
+}))
+
 // Mock Supabase - needs to return a chainable builder
 const createMockBuilder = (tableName: string) => {
   const builder: any = {
@@ -11,6 +16,8 @@ const createMockBuilder = (tableName: string) => {
       data: tableName === 'categories' ? [
         { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
         { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
+      ] : tableName === 'bookmarks' ? [
+        { id: '1', url: 'https://twitter.com/test/status/123', title: 'Test Tweet', is_tweet: true, is_categorized: false, is_keeper: false, is_skipped: false },
       ] : [],
       error: null,
     })),
@@ -48,10 +55,12 @@ describe('CategorizePage', () => {
     expect(screen.getByText(/of/i)).toBeInTheDocument()
   })
 
-  it('renders bookmark preview area placeholder', async () => {
+  it('renders bookmark preview with tweet', async () => {
     render(await CategorizePage())
 
-    expect(screen.getByText(/preview/i)).toBeInTheDocument()
+    // Should render TweetPreview component with the mock tweet URL
+    expect(screen.getByTestId('tweet-preview')).toBeInTheDocument()
+    expect(screen.getByText('https://twitter.com/test/status/123')).toBeInTheDocument()
   })
 
   it('renders category picker placeholder', async () => {

@@ -21,6 +21,8 @@ Started: 2026-01-22
 - Date handling in API routes: Accept both Date objects and ISO strings (JSON serialization converts Dates to strings)
 - State machines: Use string literal union types for states, useState for current state, conditional rendering based on state
 - Category hierarchy: Filter by `parent_id === null` for main categories, `parent_id === mainId` for subcategories
+- Tweet embeds: Use `getTweetId()` from `@/lib/tweet-utils` to extract tweet ID, render with `<Tweet id={tweetId} />` from react-tweet
+- react-tweet components: Tweet (embed), TweetNotFound (error), TweetSkeleton (loading) - no API key needed
 
 ## Key Files
 
@@ -334,3 +336,39 @@ Started: 2026-01-22
 
 ---
 
+
+## 2026-01-23 - CAT-004
+- Implemented bookmark preview for tweets using react-tweet
+- Created getTweetId() utility function in src/lib/tweet-utils.ts to extract tweet IDs from twitter.com and x.com URLs
+- Created TweetPreview component in src/components/categorize/tweet-preview.tsx
+- Component uses react-tweet's Tweet component for tweet embeds
+- Shows TweetNotFound fallback for invalid URLs with link to open in browser
+- Integrated TweetPreview into categorize page with conditional rendering based on is_tweet flag
+- All 79 tests passing, build passes with no errors
+- Screenshot verified UI integration
+
+**Files changed:**
+- src/lib/tweet-utils.ts (created)
+- src/lib/tweet-utils.test.ts (created)
+- src/components/categorize/tweet-preview.tsx (created)
+- src/components/categorize/tweet-preview.test.tsx (created)
+- src/app/categorize/page.tsx (updated - integrated TweetPreview)
+- src/app/categorize/page.test.tsx (updated - mocked TweetPreview)
+
+**Learnings:**
+- react-tweet is already installed and provides Tweet, TweetNotFound, TweetSkeleton components
+- Tweet component accepts id prop (string of numeric tweet ID)
+- getTweetId() extracts ID using regex matching twitter.com or x.com URLs with /status/ path
+- react-tweet handles loading states and error states automatically
+- No API key required for react-tweet (uses built-in endpoint)
+- Component is client-side ('use client') for interactivity
+- Fallback UI shows TweetNotFound component plus custom message and link to open in browser
+- Server component (page.tsx) fetches bookmark data, passes to client component for rendering
+
+**Design decisions:**
+- TweetPreview wraps Tweet component in centered container with min-height matching design spec (500px)
+- Fallback card matches design aesthetic: dark theme, emerald accent colors, rounded borders
+- Shows "Open in browser" link for invalid tweet URLs
+- Page conditionally renders TweetPreview for tweets, placeholder for non-tweets, empty state for no bookmarks
+
+---
