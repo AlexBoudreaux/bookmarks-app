@@ -18,6 +18,11 @@ export default async function BrowsePage() {
     .select('*')
     .order('usage_count', { ascending: false })
 
+  // Fetch bookmark_categories junction table for filtering
+  const { data: bookmarkCategories } = await supabase
+    .from('bookmark_categories')
+    .select('bookmark_id, category_id')
+
   return (
     <div className="min-h-screen bg-zinc-950">
       {/* Fixed Header */}
@@ -50,6 +55,7 @@ export default async function BrowsePage() {
         <BrowseContent
           categories={categories || []}
           bookmarks={bookmarks || []}
+          bookmarkCategories={bookmarkCategories || []}
         />
       </main>
     </div>

@@ -347,7 +347,7 @@
       ],
       "priority": 41,
       "dependsOn": ["BRW-001"],
-      "done": false
+      "done": true
     },
     {
       "id": "BRW-003",

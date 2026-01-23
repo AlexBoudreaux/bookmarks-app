@@ -25,12 +25,18 @@ interface BookmarkData {
   add_date: string | null
 }
 
+interface BookmarkCategory {
+  bookmark_id: string
+  category_id: string
+}
+
 interface BrowseContentProps {
   categories: Category[]
   bookmarks: BookmarkData[]
+  bookmarkCategories: BookmarkCategory[]
 }
 
-export function BrowseContent({ categories, bookmarks }: BrowseContentProps) {
+export function BrowseContent({ categories, bookmarks, bookmarkCategories }: BrowseContentProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
@@ -44,6 +50,70 @@ export function BrowseContent({ categories, bookmarks }: BrowseContentProps) {
 
   const getSubcategories = (parentId: string) =>
     categories.filter(c => c.parent_id === parentId)
+
+  // Build a map of category ID -> set of bookmark IDs for efficient lookup
+  const categoryToBookmarks = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+    for (const bc of bookmarkCategories) {
+      if (!map.has(bc.category_id)) {
+        map.set(bc.category_id, new Set())
+      }
+      map.get(bc.category_id)!.add(bc.bookmark_id)
+    }
+    return map
+  }, [bookmarkCategories])
+
+  // Calculate bookmark count for a category (including bookmarks in its subcategories for main categories)
+  const getBookmarkCount = (categoryId: string, isMainCategory: boolean): number => {
+    if (isMainCategory) {
+      // For main categories, count bookmarks in main category AND all subcategories
+      const subcats = getSubcategories(categoryId)
+      const allCategoryIds = [categoryId, ...subcats.map(s => s.id)]
+      const bookmarkIds = new Set<string>()
+      for (const catId of allCategoryIds) {
+        const bms = categoryToBookmarks.get(catId)
+        if (bms) {
+          for (const bmId of bms) {
+            bookmarkIds.add(bmId)
+          }
+        }
+      }
+      return bookmarkIds.size
+    } else {
+      // For subcategories, count only direct bookmarks
+      return categoryToBookmarks.get(categoryId)?.size || 0
+    }
+  }
+
+  // Filter bookmarks based on selected category
+  const filteredBookmarks = useMemo(() => {
+    if (selectedCategoryId === null) {
+      return bookmarks
+    }
+
+    const selectedCategory = categories.find(c => c.id === selectedCategoryId)
+    const isMainCategory = selectedCategory?.parent_id === null
+
+    if (isMainCategory) {
+      // Include bookmarks from main category and all its subcategories
+      const subcats = getSubcategories(selectedCategoryId)
+      const allCategoryIds = [selectedCategoryId, ...subcats.map(s => s.id)]
+      const bookmarkIds = new Set<string>()
+      for (const catId of allCategoryIds) {
+        const bms = categoryToBookmarks.get(catId)
+        if (bms) {
+          for (const bmId of bms) {
+            bookmarkIds.add(bmId)
+          }
+        }
+      }
+      return bookmarks.filter(b => bookmarkIds.has(b.id))
+    } else {
+      // Subcategory: only show bookmarks directly in that subcategory
+      const bookmarkIds = categoryToBookmarks.get(selectedCategoryId) || new Set()
+      return bookmarks.filter(b => bookmarkIds.has(b.id))
+    }
+  }, [selectedCategoryId, bookmarks, categories, categoryToBookmarks])
 
   const toggleCategoryExpanded = (categoryId: string) => {
     setExpandedCategories(prev => {
@@ -159,7 +229,7 @@ export function BrowseContent({ categories, bookmarks }: BrowseContentProps) {
                       <>
                         <span className="flex-1 truncate">{category.name}</span>
                         <span className="text-xs text-zinc-500">
-                          {category.usage_count || 0}
+                          {getBookmarkCount(category.id, true)}
                         </span>
                       </>
                     )}
@@ -183,7 +253,7 @@ export function BrowseContent({ categories, bookmarks }: BrowseContentProps) {
                       >
                         <span className="flex-1 text-left truncate">{sub.name}</span>
                         <span className="text-xs text-zinc-600">
-                          {sub.usage_count || 0}
+                          {getBookmarkCount(sub.id, false)}
                         </span>
                       </button>
                     ))}
@@ -235,7 +305,7 @@ export function BrowseContent({ categories, bookmarks }: BrowseContentProps) {
             data-testid="bookmark-grid"
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
           >
-            {bookmarks.length === 0 ? (
+            {filteredBookmarks.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
                 <div className="w-16 h-16 rounded-full bg-zinc-800/50 flex items-center justify-center mb-4">
                   <Bookmark className="w-8 h-8 text-zinc-600" />
@@ -246,12 +316,12 @@ export function BrowseContent({ categories, bookmarks }: BrowseContentProps) {
                 </p>
               </div>
             ) : (
-              bookmarks.map(bookmark => (
-                <div
+              filteredBookmarks.map(bookmark => (
+                <article
                   key={bookmark.id}
                   className="group relative rounded-lg border border-zinc-800/50 bg-zinc-900/30 p-4 hover:bg-zinc-800/30 hover:border-zinc-700/50 transition-all cursor-pointer"
                 >
-                  {/* Bookmark Card Placeholder */}
+                  {/* Bookmark Card */}
                   <div className="space-y-2">
                     {bookmark.is_tweet && (
                       <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-sky-500/10 text-sky-400">
@@ -270,7 +340,7 @@ export function BrowseContent({ categories, bookmarks }: BrowseContentProps) {
                       </p>
                     )}
                   </div>
-                </div>
+                </article>
               ))
             )}
           </div>

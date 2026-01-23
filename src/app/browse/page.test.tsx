@@ -6,32 +6,51 @@ vi.mock('@/components/browse/browse-content', () => ({
   BrowseContent: ({
     categories,
     bookmarks,
+    bookmarkCategories,
   }: {
     categories: any[]
     bookmarks: any[]
+    bookmarkCategories: any[]
   }) => (
     <div data-testid="browse-content">
       <div data-testid="bookmark-count">{bookmarks.length}</div>
       <div data-testid="category-count">{categories.length}</div>
+      <div data-testid="junction-count">{bookmarkCategories.length}</div>
     </div>
   ),
 }))
 
 // Mock Supabase with chainable builder
 const createMockBuilder = (tableName: string) => {
+  const mockData: Record<string, any[]> = {
+    categories: [
+      { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
+      { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
+      { id: '1a', name: 'Components', parent_id: '1', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
+    ],
+    bookmarks: [
+      { id: '1', url: 'https://twitter.com/test/status/123', title: 'Test Tweet', is_tweet: true, is_categorized: true, domain: 'twitter.com' },
+      { id: '2', url: 'https://github.com/example/repo', title: 'GitHub Repo', is_tweet: false, is_categorized: true, domain: 'github.com' },
+    ],
+    bookmark_categories: [
+      { bookmark_id: '1', category_id: '1a' },
+      { bookmark_id: '1', category_id: '1' },
+      { bookmark_id: '2', category_id: '2' },
+    ],
+  }
+
   const builder: any = {
-    select: vi.fn(() => builder),
+    select: vi.fn(() => {
+      // For bookmark_categories, select returns data directly (no order call)
+      if (tableName === 'bookmark_categories') {
+        return { data: mockData[tableName] || [], error: null }
+      }
+      return builder
+    }),
     eq: vi.fn(() => builder),
     is: vi.fn(() => builder),
     order: vi.fn(() => ({
-      data: tableName === 'categories' ? [
-        { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
-        { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
-        { id: '1a', name: 'Components', parent_id: '1', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
-      ] : tableName === 'bookmarks' ? [
-        { id: '1', url: 'https://twitter.com/test/status/123', title: 'Test Tweet', is_tweet: true, is_categorized: true, domain: 'twitter.com' },
-        { id: '2', url: 'https://github.com/example/repo', title: 'GitHub Repo', is_tweet: false, is_categorized: true, domain: 'github.com' },
-      ] : [],
+      data: mockData[tableName] || [],
       error: null,
     })),
   }
@@ -76,6 +95,12 @@ describe('BrowsePage', () => {
     render(await BrowsePage())
 
     expect(screen.getByTestId('category-count')).toHaveTextContent('3')
+  })
+
+  it('passes bookmark_categories junction data to BrowseContent', async () => {
+    render(await BrowsePage())
+
+    expect(screen.getByTestId('junction-count')).toHaveTextContent('3')
   })
 
   it('has correct layout structure with sidebar and main area', async () => {

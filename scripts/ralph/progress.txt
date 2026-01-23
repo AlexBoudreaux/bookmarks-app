@@ -687,3 +687,29 @@ Started: 2026-01-22
 - Bookmark cards have hover effects and subtle transitions
 
 ---
+
+## 2026-01-23 - BRW-002
+- Implemented category tree sidebar with filtering functionality
+- Updated page.tsx to fetch bookmark_categories junction table data
+- Added categoryToBookmarks Map for efficient bookmark ID lookups by category
+- Implemented getBookmarkCount() function that counts bookmarks in main categories (including subcategories) and subcategories (direct only)
+- Added filteredBookmarks computed property that filters based on selected category
+- Main category selection shows all bookmarks in main category + all its subcategories
+- Subcategory selection shows only bookmarks directly in that subcategory
+- Changed sidebar counts from usage_count to actual bookmark counts
+- Changed bookmark cards from div to article elements for semantic HTML
+- All 195 tests passing, build passes with no errors
+
+**Files changed:**
+- src/app/browse/page.tsx (updated to fetch bookmark_categories)
+- src/app/browse/page.test.tsx (updated mock and added junction table test)
+- src/components/browse/browse-content.tsx (added filtering logic, bookmark counts)
+- src/components/browse/browse-content.test.tsx (added 5 filtering tests)
+
+**Learnings:**
+- Map<categoryId, Set<bookmarkId>> is efficient for filtering by category
+- For main categories, need to aggregate bookmarks from all subcategories
+- useMemo for filtered data prevents recalculation on every render
+- Article element is semantically correct for bookmark cards and helps with test queries
+
+---
