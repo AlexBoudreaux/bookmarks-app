@@ -36,16 +36,13 @@ run_claude() {
   local debug_log=$2
   local temp_output="${debug_log%.log}.json"
 
-  echo "🔍 Running Claude (attempt $attempt)..."
+  echo "🔍 Running Claude (attempt $attempt) with Opus..."
 
   # Use stream-json with verbose to detect completion before hang
   # See: https://github.com/anthropics/claude-code/issues/19060
   cat "$SCRIPT_DIR/prompt.md" | \
-    claude --dangerously-skip-permissions -p --output-format stream-json --verbose 2>&1 > "$temp_output" &
+    claude --dangerously-skip-permissions -p --model opus --output-format stream-json --verbose 2>&1 > "$temp_output" &
   local claude_pid=$!
-
-  echo "   Claude PID: $claude_pid"
-  echo "   Monitoring output: $temp_output"
 
   # Wait for result message with manual timeout (macOS compatible)
   local elapsed=0
@@ -55,14 +52,12 @@ run_claude() {
   while [ $elapsed -lt $max_wait ]; do
     # Check if Claude process still running
     if ! kill -0 $claude_pid 2>/dev/null; then
-      echo "   Claude process exited naturally after ${elapsed}s"
       result_found=true
       break
     fi
 
     # Check if result message appeared
     if [ -f "$temp_output" ] && grep -q '"type":"result"' "$temp_output" 2>/dev/null; then
-      echo "   ✓ Result message detected after ${elapsed}s"
       result_found=true
 
       # Give 5s grace period for clean exit
@@ -70,7 +65,7 @@ run_claude() {
 
       # If still running, kill it (hung on cleanup)
       if kill -0 $claude_pid 2>/dev/null; then
-        echo "   Process hung on exit, killing..."
+        echo "   (Process hung, killing...)"
         kill $claude_pid 2>/dev/null || true
       fi
 
@@ -83,14 +78,14 @@ run_claude() {
 
   # Final cleanup - make sure process is dead
   if kill -0 $claude_pid 2>/dev/null; then
-    echo "   Timeout reached, killing process..."
+    echo "   ⚠️  Timeout after ${max_wait}s"
     kill $claude_pid 2>/dev/null || true
   fi
 
   wait $claude_pid 2>/dev/null || true
 
   if [ "$result_found" = false ]; then
-    echo "   ⚠️  No result message found after ${max_wait}s"
+    echo "   ⚠️  No result found"
     return 1
   fi
 
@@ -142,8 +137,17 @@ for i in $(seq 1 $MAX_ITERATIONS); do
       OUTPUT=$(cat "$DEBUG_LOG")
       echo ""
       echo "✅ Attempt $attempt succeeded"
+
+      # Show a summary instead of full output
+      SUMMARY=$(echo "$OUTPUT" | grep -E "complete|done|Task|✅|✓|feat:" | head -5)
+      if [ -n "$SUMMARY" ]; then
+        echo ""
+        echo "$SUMMARY"
+      fi
+
+      # Show full output in debug log
+      echo "   Full output: $DEBUG_LOG"
       echo ""
-      echo "$OUTPUT"
       break
     else
       echo "❌ Attempt $attempt failed"
