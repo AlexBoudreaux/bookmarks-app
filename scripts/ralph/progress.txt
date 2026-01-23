@@ -12,6 +12,9 @@ Started: 2026-01-22
 - Path alias: `@/*` maps to `./src/*`
 - Testing: Vitest for unit tests (`src/**/*.test.ts`), Playwright for E2E (`e2e/**/*.spec.ts`)
 - Test imports: Use `@/` path alias in tests (configured in vitest.config.ts)
+- Chrome bookmarks: Parse using `parseBookmarksHtml()` from `@/lib/parse-bookmarks`
+- Tweet detection: Use regex `/(?:twitter\.com|x\.com)\/\w+\/status\/\d+/`
+- happy-dom quirk: Nested DL tags are children of DT elements, not siblings
 
 ## Key Files
 
@@ -74,5 +77,27 @@ Started: 2026-01-22
 - Each INSERT for subcategories uses `SELECT id FROM categories WHERE name = 'ParentName' AND parent_id IS NULL` to find parent
 - Verification script uses manual .env.local parsing since dotenv is not installed
 - All 51 categories successfully inserted with correct hierarchy (9 main + 42 sub)
+
+---
+
+## 2026-01-22 - IMP-001
+- Implemented Chrome HTML bookmark parser in `src/lib/parse-bookmarks.ts`
+- Created comprehensive test suite with 12 test cases in `src/lib/parse-bookmarks.test.ts`
+- Parser extracts URL, title, addDate, folderPath, and isTweet from Netscape bookmark format
+- Handles nested folder structures correctly
+- Detects tweet URLs from both twitter.com and x.com domains
+- Supports both DOMParser (browser/happy-dom) and manual regex parsing (Node.js)
+- All tests pass, build passes with no type errors
+
+**Files changed:**
+- `src/lib/parse-bookmarks.ts` (created)
+- `src/lib/parse-bookmarks.test.ts` (created)
+
+**Learnings:**
+- happy-dom DOM structure differs from browser: nested DL tags appear as CHILDREN of DT elements, not siblings
+- Chrome bookmark format uses Unix timestamps in seconds (not milliseconds) for ADD_DATE attribute
+- The `<p>` tags in bookmark HTML are parsed as separate elements by happy-dom
+- Tweet detection regex: `/(?:twitter\.com|x\.com)\/\w+\/status\/\d+/`
+- Folder paths built by maintaining a stack that grows/shrinks as we enter/exit DL elements
 
 ---
