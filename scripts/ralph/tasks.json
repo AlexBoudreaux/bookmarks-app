@@ -362,7 +362,7 @@
       ],
       "priority": 42,
       "dependsOn": ["BRW-002", "CAT-004", "CAT-005"],
-      "done": false
+      "done": true
     },
     {
       "id": "BRW-004",

@@ -2,6 +2,19 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// Mock the child components
+vi.mock('./tweet-card', () => ({
+  TweetCard: ({ url, title }: { url: string; title: string | null }) => (
+    <div data-testid="tweet-card">TweetCard: {title}</div>
+  ),
+}))
+
+vi.mock('./browse-link-card', () => ({
+  BrowseLinkCard: ({ url, title }: { url: string; title: string | null }) => (
+    <div data-testid="browse-link-card">LinkCard: {title}</div>
+  ),
+}))
+
 // Sample test data
 const mockCategories = [
   { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
@@ -12,9 +25,9 @@ const mockCategories = [
 ]
 
 const mockBookmarks = [
-  { id: '1', url: 'https://twitter.com/test/status/123', title: 'Test Tweet', is_tweet: true, is_categorized: true, domain: 'twitter.com' },
-  { id: '2', url: 'https://github.com/example/repo', title: 'GitHub Repo', is_tweet: false, is_categorized: true, domain: 'github.com' },
-  { id: '3', url: 'https://example.com/article', title: 'Example Article', is_tweet: false, is_categorized: true, domain: 'example.com' },
+  { id: '1', url: 'https://twitter.com/test/status/123', title: 'Test Tweet', is_tweet: true, is_categorized: true, domain: 'twitter.com', notes: null, og_image: null, add_date: null },
+  { id: '2', url: 'https://github.com/example/repo', title: 'GitHub Repo', is_tweet: false, is_categorized: true, domain: 'github.com', notes: null, og_image: null, add_date: null },
+  { id: '3', url: 'https://example.com/article', title: 'Example Article', is_tweet: false, is_categorized: true, domain: 'example.com', notes: null, og_image: null, add_date: null },
 ]
 
 // Junction table data linking bookmarks to categories
@@ -148,9 +161,9 @@ describe('BrowseContent', () => {
 
       // Should filter to bookmarks in UI category (Test Tweet and Example Article)
       expect(within(grid).getAllByRole('article')).toHaveLength(2)
-      expect(within(grid).getByText('Test Tweet')).toBeInTheDocument()
-      expect(within(grid).getByText('Example Article')).toBeInTheDocument()
-      expect(within(grid).queryByText('GitHub Repo')).not.toBeInTheDocument()
+      expect(within(grid).getByText('TweetCard: Test Tweet')).toBeInTheDocument()
+      expect(within(grid).getByText('LinkCard: Example Article')).toBeInTheDocument()
+      expect(within(grid).queryByText('LinkCard: GitHub Repo')).not.toBeInTheDocument()
     })
 
     it('clicking subcategory filters to just that subcategory', async () => {
@@ -170,7 +183,7 @@ describe('BrowseContent', () => {
       // Should filter to only Test Tweet (in UI/Components)
       const grid = screen.getByTestId('bookmark-grid')
       expect(within(grid).getAllByRole('article')).toHaveLength(1)
-      expect(within(grid).getByText('Test Tweet')).toBeInTheDocument()
+      expect(within(grid).getByText('TweetCard: Test Tweet')).toBeInTheDocument()
     })
 
     it('shows bookmark count per category', () => {
@@ -209,6 +222,129 @@ describe('BrowseContent', () => {
       // Should show all 3 bookmarks again
       grid = screen.getByTestId('bookmark-grid')
       expect(within(grid).getAllByRole('article')).toHaveLength(3)
+    })
+  })
+
+  // BRW-003: Bookmark grid display tests
+  describe('Bookmark grid display', () => {
+    it('renders TweetCard for tweet bookmarks', () => {
+      render(<BrowseContent categories={mockCategories} bookmarks={mockBookmarks} bookmarkCategories={mockBookmarkCategories} />)
+
+      // Should use TweetCard for tweet bookmark
+      expect(screen.getByTestId('tweet-card')).toBeInTheDocument()
+      expect(screen.getByText('TweetCard: Test Tweet')).toBeInTheDocument()
+    })
+
+    it('renders BrowseLinkCard for non-tweet bookmarks', () => {
+      render(<BrowseContent categories={mockCategories} bookmarks={mockBookmarks} bookmarkCategories={mockBookmarkCategories} />)
+
+      // Should use BrowseLinkCard for non-tweet bookmarks
+      const linkCards = screen.getAllByTestId('browse-link-card')
+      expect(linkCards).toHaveLength(2)
+      expect(screen.getByText('LinkCard: GitHub Repo')).toBeInTheDocument()
+      expect(screen.getByText('LinkCard: Example Article')).toBeInTheDocument()
+    })
+
+    it('shows load more button when there are more bookmarks', () => {
+      // Create 15 bookmarks (more than ITEMS_PER_PAGE of 12)
+      const manyBookmarks = Array.from({ length: 15 }, (_, i) => ({
+        id: `bm-${i}`,
+        url: `https://example.com/${i}`,
+        title: `Bookmark ${i}`,
+        is_tweet: false,
+        is_categorized: true,
+        domain: 'example.com',
+        notes: null,
+        og_image: null,
+        add_date: null,
+      }))
+
+      render(<BrowseContent categories={[]} bookmarks={manyBookmarks} bookmarkCategories={[]} />)
+
+      // Should show load more button
+      expect(screen.getByTestId('load-more-button')).toBeInTheDocument()
+      expect(screen.getByText(/3 remaining/)).toBeInTheDocument()
+    })
+
+    it('does not show load more button when all bookmarks displayed', () => {
+      render(<BrowseContent categories={mockCategories} bookmarks={mockBookmarks} bookmarkCategories={mockBookmarkCategories} />)
+
+      // Only 3 bookmarks, should not show load more
+      expect(screen.queryByTestId('load-more-button')).not.toBeInTheDocument()
+    })
+
+    it('clicking load more shows more bookmarks', async () => {
+      const user = userEvent.setup()
+      const manyBookmarks = Array.from({ length: 15 }, (_, i) => ({
+        id: `bm-${i}`,
+        url: `https://example.com/${i}`,
+        title: `Bookmark ${i}`,
+        is_tweet: false,
+        is_categorized: true,
+        domain: 'example.com',
+        notes: null,
+        og_image: null,
+        add_date: null,
+      }))
+
+      render(<BrowseContent categories={[]} bookmarks={manyBookmarks} bookmarkCategories={[]} />)
+
+      const grid = screen.getByTestId('bookmark-grid')
+
+      // Initially should show 12 bookmarks
+      expect(within(grid).getAllByRole('article')).toHaveLength(12)
+
+      // Click load more
+      await user.click(screen.getByTestId('load-more-button'))
+
+      // Should now show all 15 bookmarks
+      expect(within(grid).getAllByRole('article')).toHaveLength(15)
+
+      // Load more button should be gone
+      expect(screen.queryByTestId('load-more-button')).not.toBeInTheDocument()
+    })
+
+    it('resets pagination when category filter changes', async () => {
+      const user = userEvent.setup()
+      const manyBookmarks = Array.from({ length: 15 }, (_, i) => ({
+        id: `bm-${i}`,
+        url: `https://example.com/${i}`,
+        title: `Bookmark ${i}`,
+        is_tweet: false,
+        is_categorized: true,
+        domain: 'example.com',
+        notes: null,
+        og_image: null,
+        add_date: null,
+      }))
+
+      // Link all bookmarks to UI category
+      const manyBookmarkCategories = manyBookmarks.map(b => ({
+        bookmark_id: b.id,
+        category_id: '1',
+      }))
+
+      render(
+        <BrowseContent
+          categories={mockCategories}
+          bookmarks={manyBookmarks}
+          bookmarkCategories={manyBookmarkCategories}
+        />
+      )
+
+      // Click load more to show all
+      await user.click(screen.getByTestId('load-more-button'))
+
+      const grid = screen.getByTestId('bookmark-grid')
+      expect(within(grid).getAllByRole('article')).toHaveLength(15)
+
+      // Click a category to filter
+      const uiButton = screen.getByText('UI').closest('button')
+      await user.click(uiButton!)
+
+      // Should reset to initial 12 (or all 15 if fewer than 12 in category)
+      // Since all 15 are in UI category, should show 12 again
+      expect(within(grid).getAllByRole('article')).toHaveLength(12)
     })
   })
 })

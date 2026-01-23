@@ -713,3 +713,31 @@ Started: 2026-01-22
 - Article element is semantically correct for bookmark cards and helps with test queries
 
 ---
+
+## 2026-01-23 - BRW-003
+- Implemented bookmark grid display with tweet embeds and link cards
+- Created TweetCard component using react-tweet's Tweet component for compact tweet embeds in browse grid
+- Created BrowseLinkCard component for non-tweet bookmarks with OG image support, title, domain, and notes preview
+- Updated BrowseContent to use TweetCard for tweets and BrowseLinkCard for non-tweets
+- Added pagination with "Load more" button (12 items per page) and remaining count display
+- Pagination resets when category filter changes
+- All 216 tests passing, build passes with no errors
+
+**Files changed:**
+- src/components/browse/tweet-card.tsx (created)
+- src/components/browse/tweet-card.test.tsx (created)
+- src/components/browse/browse-link-card.tsx (created)
+- src/components/browse/browse-link-card.test.tsx (created)
+- src/components/browse/browse-content.tsx (updated with TweetCard/BrowseLinkCard and pagination)
+- src/components/browse/browse-content.test.tsx (added 8 new tests for grid display and pagination)
+
+**Learnings:**
+- react-tweet's Tweet component works well in compact cards, wraps automatically
+- Suspense boundary around Tweet for loading states
+- TweetFallback needed when tweet ID extraction fails (shows title + open link)
+- Pagination state reset on filter change prevents stale data display
+- ITEMS_PER_PAGE constant at module level for easy tuning
+- img elements with alt="" need container.querySelector not getByRole in tests
+- When mocking components in tests, update assertions to match mocked output
+
+---

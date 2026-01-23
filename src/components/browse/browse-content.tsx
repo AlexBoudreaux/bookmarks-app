@@ -1,8 +1,12 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Search, ChevronRight, ChevronDown, PanelLeftClose, PanelLeft, Bookmark, Filter } from 'lucide-react'
+import { Search, ChevronRight, ChevronDown, PanelLeftClose, PanelLeft, Bookmark, Filter, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { TweetCard } from './tweet-card'
+import { BrowseLinkCard } from './browse-link-card'
+
+const ITEMS_PER_PAGE = 12
 
 interface Category {
   id: string
@@ -41,6 +45,7 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
+  const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE)
 
   // Separate main categories from subcategories
   const mainCategories = useMemo(
@@ -115,6 +120,24 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
     }
   }, [selectedCategoryId, bookmarks, categories, categoryToBookmarks])
 
+  // Paginated bookmarks for display
+  const displayedBookmarks = useMemo(
+    () => filteredBookmarks.slice(0, displayCount),
+    [filteredBookmarks, displayCount]
+  )
+
+  const hasMore = displayCount < filteredBookmarks.length
+
+  const loadMore = () => {
+    setDisplayCount(prev => prev + ITEMS_PER_PAGE)
+  }
+
+  // Reset pagination when filter changes
+  const handleCategoryClickWithReset = (categoryId: string | null) => {
+    setSelectedCategoryId(categoryId)
+    setDisplayCount(ITEMS_PER_PAGE)
+  }
+
   const toggleCategoryExpanded = (categoryId: string) => {
     setExpandedCategories(prev => {
       const next = new Set(prev)
@@ -128,7 +151,7 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
   }
 
   const handleCategoryClick = (categoryId: string | null) => {
-    setSelectedCategoryId(categoryId)
+    handleCategoryClickWithReset(categoryId)
   }
 
   return (
@@ -316,34 +339,40 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
                 </p>
               </div>
             ) : (
-              filteredBookmarks.map(bookmark => (
+              displayedBookmarks.map(bookmark => (
                 <article
                   key={bookmark.id}
-                  className="group relative rounded-lg border border-zinc-800/50 bg-zinc-900/30 p-4 hover:bg-zinc-800/30 hover:border-zinc-700/50 transition-all cursor-pointer"
+                  className="group relative rounded-lg border border-zinc-800/50 bg-zinc-900/30 hover:bg-zinc-800/30 hover:border-zinc-700/50 transition-all overflow-hidden"
                 >
-                  {/* Bookmark Card */}
-                  <div className="space-y-2">
-                    {bookmark.is_tweet && (
-                      <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-sky-500/10 text-sky-400">
-                        Tweet
-                      </span>
-                    )}
-                    <h4 className="text-sm font-medium text-zinc-200 line-clamp-2">
-                      {bookmark.title || 'Untitled'}
-                    </h4>
-                    <p className="text-xs text-zinc-500 font-mono">
-                      {bookmark.domain}
-                    </p>
-                    {bookmark.notes && (
-                      <p className="text-xs text-zinc-400 line-clamp-2 italic">
-                        {bookmark.notes}
-                      </p>
-                    )}
-                  </div>
+                  {bookmark.is_tweet ? (
+                    <TweetCard url={bookmark.url} title={bookmark.title} />
+                  ) : (
+                    <BrowseLinkCard
+                      url={bookmark.url}
+                      title={bookmark.title}
+                      domain={bookmark.domain}
+                      notes={bookmark.notes}
+                      ogImage={bookmark.og_image}
+                    />
+                  )}
                 </article>
               ))
             )}
           </div>
+
+          {/* Load More Button */}
+          {hasMore && (
+            <div className="flex justify-center mt-8 pb-4">
+              <button
+                onClick={loadMore}
+                data-testid="load-more-button"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 hover:text-zinc-100 transition-colors text-sm font-medium"
+              >
+                <Loader2 className="w-4 h-4" />
+                Load more ({filteredBookmarks.length - displayCount} remaining)
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
