@@ -123,3 +123,39 @@ Started: 2026-01-22
 - When boundary not found, all bookmarks default to toCategorizeCount with keeperCount=0
 
 ---
+
+## 2026-01-22 - IMP-003
+- Implemented import page dropzone UI with TDD approach
+- Created client component `Dropzone` in `src/components/import/dropzone.tsx`
+- Updated home page (`src/app/page.tsx`) with fixed header and centered layout
+- Added drag-and-drop file upload with visual feedback (hover glow, scale animations)
+- Included Chrome export instructions with numbered steps
+- Created comprehensive tests in `src/app/page.test.tsx` (4 tests, all passing)
+- Screenshot verified UI matches design aesthetic: sleek minimal dashboard, dark theme, polished
+- Build passes with no type errors, all 30 tests passing
+
+**Files changed:**
+- `src/components/import/dropzone.tsx` (created)
+- `src/app/page.tsx` (updated)
+- `src/app/page.test.tsx` (created)
+- `package.json` (added @testing-library/react, @testing-library/user-event, @testing-library/jest-dom)
+
+**Learnings:**
+- TDD workflow effective: write failing tests first, implement until passing
+- Testing React Server Components requires rendering the awaited component: `render(await Home())`
+- Use `getAllByText` for elements that intentionally appear multiple times on the page
+- Mock Supabase responses with `vi.fn()` to control test scenarios (0 bookmarks vs 10+ bookmarks)
+- Screenshot verification with dev-browser confirms visual design matches intent
+- Dark theme uses CSS variables from globals.css, maintaining consistency across components
+- Client components (`'use client'`) needed for interactive elements (drag/drop, state)
+- Lucide-react icons (Upload, ArrowRight) for clean, consistent iconography
+
+**Aesthetic decisions:**
+- Refined minimal dashboard aesthetic (not bold/flashy)
+- Subtle animations: glow on hover, scale transform, smooth transitions
+- Radial gradient glow effect on dropzone hover/drag states
+- Numbered instruction steps with circular badges using primary color
+- Fixed header with backdrop blur for polished feel
+- Dark theme only (as specified in PRD)
+
+---

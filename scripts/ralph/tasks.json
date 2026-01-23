@@ -83,7 +83,7 @@
       ],
       "priority": 12,
       "dependsOn": ["SETUP-001"],
-      "done": false
+      "done": true
     },
     {
       "id": "IMP-004",

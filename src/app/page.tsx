@@ -1,27 +1,46 @@
-import { supabase } from "@/lib/supabase";
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
+import { Dropzone } from '@/components/import/dropzone';
+import { supabase } from '@/lib/supabase';
 
 export default async function Home() {
-  const { count, error } = await supabase
-    .from("bookmarks")
-    .select("*", { count: "exact", head: true });
+  const { count } = await supabase
+    .from('bookmarks')
+    .select('*', { count: 'exact', head: true });
+
+  const hasBookmarks = (count ?? 0) > 0;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-col items-center gap-8 p-8">
-        <h1 className="text-4xl font-bold text-zinc-900 dark:text-zinc-50">
-          Bookmarks App
-        </h1>
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-          <h2 className="text-lg font-semibold text-zinc-700 dark:text-zinc-300">
-            Supabase Connection
-          </h2>
-          {error ? (
-            <p className="mt-2 text-red-500">Error: {error.message}</p>
-          ) : (
-            <p className="mt-2 text-green-600 dark:text-green-400">
-              Connected! Bookmarks count: {count ?? 0}
-            </p>
+    <div className="relative min-h-screen bg-background">
+      {/* Header */}
+      <header className="fixed top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-sm">
+        <div className="container mx-auto flex h-16 items-center justify-between px-6">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Bookmarks</h1>
+          {hasBookmarks && (
+            <Link
+              href="/browse"
+              className="group inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Browse
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
           )}
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="flex min-h-screen items-center justify-center px-6 pt-16">
+        <div className="w-full max-w-3xl py-16">
+          <div className="mb-12 text-center">
+            <h2 className="mb-3 text-4xl font-bold tracking-tight text-foreground">
+              Import Your Bookmarks
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              Drop your Chrome bookmarks file to get started
+            </p>
+          </div>
+
+          <Dropzone />
         </div>
       </main>
     </div>
