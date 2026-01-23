@@ -909,3 +909,26 @@ Started: 2026-01-22
 - Visual feedback during drag via snapshot.isDragging prop in Draggable render function
 
 ---
+
+## 2026-01-23 - OG-001
+- Implemented POST /api/og route to fetch Open Graph metadata for non-tweet URLs
+- Uses open-graph-scraper package with custom user agent to avoid blocking
+- Returns og:title, og:description, og:image, og:siteName with Twitter card fallback
+- Optionally caches og_image to bookmarks table when bookmarkId provided
+- Handles fetch failures gracefully with appropriate error responses
+- Created 10 comprehensive unit tests covering all acceptance criteria
+- All 331 tests passing, build succeeds
+
+**Files changed:**
+- src/app/api/og/route.ts (created)
+- src/app/api/og/route.test.ts (created)
+- package.json (added open-graph-scraper)
+
+**Learnings:**
+- open-graph-scraper returns { error: boolean, result: object } structure
+- Use custom user-agent to avoid 403 errors from sites that block scrapers
+- Result object has ogTitle, ogDescription, ogImage (array), with twitterX fallbacks
+- Timeout option is in seconds, not milliseconds
+- og_image column already exists in database schema from initial migration
+
+---
