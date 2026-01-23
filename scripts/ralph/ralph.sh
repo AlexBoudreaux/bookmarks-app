@@ -29,14 +29,14 @@ fi
 echo "✅ Build passes"
 echo ""
 
-# Function to run Claude with hang detection
+# Function to run Claude with hang detection (macOS compatible)
 # Returns 0 on success, 1 on failure
 run_claude() {
   local attempt=$1
   local debug_log=$2
   local temp_output="${debug_log%.log}.json"
 
-  echo "🔍 Running Claude (attempt $attempt, log: $debug_log)..."
+  echo "🔍 Running Claude (attempt $attempt)..."
 
   # Use stream-json to detect completion before hang
   # See: https://github.com/anthropics/claude-code/issues/19060
@@ -44,38 +44,73 @@ run_claude() {
     claude --dangerously-skip-permissions --output-format stream-json 2>&1 > "$temp_output" &
   local claude_pid=$!
 
-  # Monitor output for completion
-  local result_received=false
-  local timeout_secs=600
+  echo "   Claude PID: $claude_pid"
+  echo "   Monitoring output: $temp_output"
 
-  ( tail -f "$temp_output" 2>/dev/null & echo $! > /tmp/tail_pid_$claude_pid ) | \
-  timeout $timeout_secs grep -q '"type":"result"' && result_received=true
+  # Wait for result message with manual timeout (macOS compatible)
+  local elapsed=0
+  local max_wait=600  # 10 minutes
+  local result_found=false
 
-  # Kill tail
-  kill $(cat /tmp/tail_pid_$claude_pid 2>/dev/null) 2>/dev/null || true
-  rm -f /tmp/tail_pid_$claude_pid
+  while [ $elapsed -lt $max_wait ]; do
+    # Check if Claude process still running
+    if ! kill -0 $claude_pid 2>/dev/null; then
+      echo "   Claude process exited naturally after ${elapsed}s"
+      result_found=true
+      break
+    fi
 
-  if [ "$result_received" = true ]; then
-    # Give Claude 3s to exit cleanly, then kill if hung
-    sleep 3
+    # Check if result message appeared
+    if [ -f "$temp_output" ] && grep -q '"type":"result"' "$temp_output" 2>/dev/null; then
+      echo "   ✓ Result message detected after ${elapsed}s"
+      result_found=true
+
+      # Give 5s grace period for clean exit
+      sleep 5
+
+      # If still running, kill it (hung on cleanup)
+      if kill -0 $claude_pid 2>/dev/null; then
+        echo "   Process hung on exit, killing..."
+        kill $claude_pid 2>/dev/null || true
+      fi
+
+      break
+    fi
+
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+
+  # Final cleanup - make sure process is dead
+  if kill -0 $claude_pid 2>/dev/null; then
+    echo "   Timeout reached, killing process..."
     kill $claude_pid 2>/dev/null || true
-    wait $claude_pid 2>/dev/null || true
-  else
-    # Timeout or failure
-    kill $claude_pid 2>/dev/null || true
-    echo "⚠️  Claude did not complete within timeout"
+  fi
+
+  wait $claude_pid 2>/dev/null || true
+
+  if [ "$result_found" = false ]; then
+    echo "   ⚠️  No result message found after ${max_wait}s"
     return 1
   fi
 
   # Parse output for display and save to debug log
-  jq -r 'select(.type == "content_block_delta") | .delta.text' "$temp_output" 2>/dev/null | tr -d '\n' > "$debug_log"
+  if [ -f "$temp_output" ]; then
+    jq -r 'select(.type == "content_block_delta") | .delta.text' "$temp_output" 2>/dev/null | tr -d '\n' > "$debug_log"
+
+    # If empty, save raw output
+    if [ ! -s "$debug_log" ]; then
+      cat "$temp_output" > "$debug_log"
+    fi
+  else
+    echo "Error: No output file created" > "$debug_log"
+    return 1
+  fi
 
   # Check if output suggests success
-  if grep -q "COMPLETE\|complete\|done\|Task.*complete" "$debug_log" 2>/dev/null; then
+  if grep -qE "complete|done|Task.*complete|✅|✓" "$debug_log" 2>/dev/null; then
     return 0
   elif [ ! -s "$debug_log" ]; then
-    # Empty output = likely failure
-    cat "$temp_output" > "$debug_log"
     return 1
   fi
 
@@ -105,13 +140,16 @@ for i in $(seq 1 $MAX_ITERATIONS); do
     if run_claude $attempt "$DEBUG_LOG"; then
       SUCCESS=true
       OUTPUT=$(cat "$DEBUG_LOG")
+      echo ""
+      echo "✅ Attempt $attempt succeeded"
+      echo ""
       echo "$OUTPUT"
       break
     else
       echo "❌ Attempt $attempt failed"
       if [ $attempt -lt 3 ]; then
-        echo "🔄 Retrying..."
-        sleep 2
+        echo "🔄 Retrying in 5s..."
+        sleep 5
       fi
     fi
   done
@@ -120,6 +158,7 @@ for i in $(seq 1 $MAX_ITERATIONS); do
     echo ""
     echo "❌ All retries failed for iteration $i"
     echo "   Task: $NEXT_TASK"
+    echo "   Check debug logs: $SCRIPT_DIR/debug-iteration-$i-attempt-*.log"
     echo ""
     continue
   fi
@@ -140,7 +179,7 @@ for i in $(seq 1 $MAX_ITERATIONS); do
   echo "✅ Iteration $i completed in ${ITER_DURATION}s"
   echo ""
 
-  sleep 2
+  sleep 3
 done
 
 echo ""
