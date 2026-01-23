@@ -67,7 +67,7 @@
       ],
       "priority": 11,
       "dependsOn": ["IMP-001"],
-      "done": false
+      "done": true
     },
     {
       "id": "IMP-003",
