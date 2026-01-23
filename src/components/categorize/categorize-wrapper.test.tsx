@@ -311,4 +311,137 @@ describe('CategorizeWrapper - Navigation', () => {
       })
     })
   })
+
+  describe('Skip bookmark (Delete/Backspace)', () => {
+    it('calls onSkip with current bookmark when Delete is pressed', async () => {
+      const user = userEvent.setup()
+      const onSkip = vi.fn()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+          onSkip={onSkip}
+        />
+      )
+
+      // Press Delete key
+      await user.keyboard('{Delete}')
+
+      await waitFor(() => {
+        expect(onSkip).toHaveBeenCalledWith(mockBookmarks[0])
+      })
+    })
+
+    it('calls onSkip with current bookmark when Backspace is pressed', async () => {
+      const user = userEvent.setup()
+      const onSkip = vi.fn()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+          onSkip={onSkip}
+        />
+      )
+
+      // Press Backspace key
+      await user.keyboard('{Backspace}')
+
+      await waitFor(() => {
+        expect(onSkip).toHaveBeenCalledWith(mockBookmarks[0])
+      })
+    })
+
+    it('moves to next bookmark after skipping', async () => {
+      const user = userEvent.setup()
+      const onSkip = vi.fn()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+          onSkip={onSkip}
+        />
+      )
+
+      // First bookmark should be shown
+      expect(screen.getByTestId('tweet-preview')).toHaveTextContent('https://twitter.com/user/status/123')
+
+      // Press Delete key
+      await user.keyboard('{Delete}')
+
+      // Should move to second bookmark
+      await waitFor(() => {
+        expect(screen.getByTestId('link-card')).toHaveTextContent('GitHub Repo')
+      })
+    })
+
+    it('shows red flash animation when skipping', async () => {
+      const user = userEvent.setup()
+      const onSkip = vi.fn()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+          onSkip={onSkip}
+        />
+      )
+
+      // Press Delete key
+      await user.keyboard('{Delete}')
+
+      // Should show red flash
+      await waitFor(() => {
+        expect(screen.getByTestId('skip-flash')).toBeInTheDocument()
+      })
+    })
+
+    it('clears selected categories when skipping', async () => {
+      const user = userEvent.setup()
+      const onSkip = vi.fn()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={0}
+          onSkip={onSkip}
+        />
+      )
+
+      // Select a category first
+      await user.click(screen.getByTestId('select-category'))
+      expect(screen.getByTestId('selected-pairs')).toHaveTextContent('UI')
+
+      // Press Delete key
+      await user.keyboard('{Delete}')
+
+      // Selected pairs should be cleared
+      await waitFor(() => {
+        expect(screen.getByTestId('selected-pairs')).toHaveTextContent('[]')
+      })
+    })
+
+    it('shows completion state when skipping last bookmark', async () => {
+      const user = userEvent.setup()
+      const onSkip = vi.fn()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+          initialIndex={2} // Last bookmark
+          onSkip={onSkip}
+        />
+      )
+
+      // Press Delete key
+      await user.keyboard('{Delete}')
+
+      // Should show completion state
+      await waitFor(() => {
+        expect(screen.getByText(/all bookmarks categorized/i)).toBeInTheDocument()
+      })
+    })
+  })
 })

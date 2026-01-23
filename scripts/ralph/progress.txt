@@ -442,3 +442,32 @@ Started: 2026-01-22
 - Preloading optimization deferred to future iteration (performance enhancement)
 
 ---
+
+## 2026-01-23 - CAT-007
+- Implemented skip bookmark functionality with Delete/Backspace keys
+- Added red flash animation when skipping (200ms pulse effect)
+- Created POST /api/bookmarks/skip route to mark bookmarks as skipped in Supabase
+- Skip functionality moves to next bookmark after skipping
+- Shows completion state when skipping last bookmark
+- All 107 tests passing, build passes with no errors
+
+**Files changed:**
+- src/components/categorize/categorize-wrapper.tsx (updated with skip handling)
+- src/components/categorize/categorize-wrapper.test.tsx (added 6 skip tests)
+- src/app/api/bookmarks/skip/route.ts (created)
+- src/app/api/bookmarks/skip/route.test.ts (created)
+
+**Learnings:**
+- Async callbacks in useCallback work fine but test environment may not support relative fetch URLs
+- Flash animation uses isSkipFlashing state with 200ms setTimeout to reset
+- Red flash combines overlay div with conditional border and background classes on the card
+- API route uses simple update query: `.update({ is_skipped: true }).eq('id', bookmarkId)`
+- Test keyboard events: use `{Delete}` and `{Backspace}` with userEvent.keyboard
+
+**Design decisions:**
+- Skip flash uses red-500/20 overlay with animate-pulse plus red border highlight on card
+- API call is fire-and-forget with try/catch to prevent blocking UI
+- onSkip callback prop allows parent components to hook into skip events if needed
+- Skip clears selected categories before moving to next bookmark
+
+---

@@ -19,6 +19,7 @@ interface CategorizeWrapperProps {
   bookmarks: Bookmark[]
   initialIndex?: number
   onIndexChange?: (index: number) => void
+  onSkip?: (bookmark: Bookmark) => void
 }
 
 export function CategorizeWrapper({
@@ -26,11 +27,13 @@ export function CategorizeWrapper({
   bookmarks,
   initialIndex = 0,
   onIndexChange,
+  onSkip,
 }: CategorizeWrapperProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
   const [selectedPairs, setSelectedPairs] = useState<CategoryPair[]>([])
   const [isShaking, setIsShaking] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
+  const [isSkipFlashing, setIsSkipFlashing] = useState(false)
 
   const currentBookmark = bookmarks[currentIndex]
   const totalCount = bookmarks.length
@@ -78,6 +81,40 @@ export function CategorizeWrapper({
     onIndexChange?.(newIndex)
   }, [isAtStart, currentIndex, onIndexChange])
 
+  const handleSkip = useCallback(async () => {
+    if (!currentBookmark) return
+
+    // Call onSkip callback
+    onSkip?.(currentBookmark)
+
+    // Show red flash animation
+    setIsSkipFlashing(true)
+    setTimeout(() => setIsSkipFlashing(false), 200)
+
+    // Mark as skipped in Supabase
+    try {
+      await fetch('/api/bookmarks/skip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookmarkId: currentBookmark.id }),
+      })
+    } catch (error) {
+      console.error('Failed to skip bookmark:', error)
+    }
+
+    // Clear selected pairs
+    setSelectedPairs([])
+
+    // Move to next bookmark or show completion
+    if (isAtEnd) {
+      setIsComplete(true)
+    } else {
+      const newIndex = currentIndex + 1
+      setCurrentIndex(newIndex)
+      onIndexChange?.(newIndex)
+    }
+  }, [currentBookmark, onSkip, isAtEnd, currentIndex, onIndexChange])
+
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -92,12 +129,15 @@ export function CategorizeWrapper({
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
         moveToPrevious()
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault()
+        handleSkip()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [moveToNext, moveToPrevious])
+  }, [moveToNext, moveToPrevious, handleSkip])
 
   // Show empty state
   if (totalCount === 0) {
@@ -124,7 +164,15 @@ export function CategorizeWrapper({
   }
 
   return (
-    <div>
+    <div className="relative">
+      {/* Skip flash overlay */}
+      {isSkipFlashing && (
+        <div
+          data-testid="skip-flash"
+          className="absolute inset-0 bg-red-500/20 rounded-2xl pointer-events-none z-50 animate-pulse"
+        />
+      )}
+
       {/* Progress indicator */}
       <div className="flex items-center justify-between mb-6 text-sm">
         <span className="text-zinc-600">Progress</span>
@@ -141,7 +189,7 @@ export function CategorizeWrapper({
           {/* Decorative background glow */}
           <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 rounded-3xl blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
-          <div className="relative bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-2xl p-12">
+          <div className={`relative bg-zinc-900/50 backdrop-blur-sm border rounded-2xl p-12 transition-colors ${isSkipFlashing ? 'border-red-500/50 bg-red-500/5' : 'border-zinc-800/50'}`}>
             {currentBookmark && currentBookmark.is_tweet ? (
               <TweetPreview url={currentBookmark.url} />
             ) : currentBookmark ? (
