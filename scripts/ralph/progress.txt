@@ -39,3 +39,21 @@ Started: 2026-01-22
 - Test naming pattern: `src/**/*.test.ts` for unit tests, `e2e/**/*.spec.ts` for E2E tests
 
 ---
+
+## 2026-01-22 - SETUP-002
+- Generated TypeScript types from Supabase remote database
+- Used `supabase gen types typescript --linked` to generate from linked project
+- Created `src/types/database.ts` with complete type definitions
+- Includes all four tables: bookmarks, categories, settings, bookmark_categories
+- Build passes with no type errors
+
+**Files changed:**
+- `src/types/database.ts` (created)
+
+**Learnings:**
+- Supabase CLI can generate types from remote project using `--linked` flag
+- No need for local Docker instance to generate types
+- Generated types include Row, Insert, Update types for each table plus utility types
+- Types include the `embedding` vector column for future semantic search
+
+---
