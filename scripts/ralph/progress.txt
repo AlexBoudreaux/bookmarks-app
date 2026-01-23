@@ -537,3 +537,40 @@ Started: 2026-01-22
 - Notes visibility resets when navigating between bookmarks
 
 ---
+
+## 2026-01-23 - CAT-010
+- Implemented new category modal functionality
+- Created POST /api/categories route to create categories in Supabase
+- Created NewCategoryModal component with form, validation, and dark theme styling
+- Integrated modal into CategoryPicker with minus key handler
+- In main view: creates main category (parent_id: null)
+- In subcategory view: creates subcategory (parent_id: selectedMain.id)
+- New category immediately selectable after creation
+- All 160 tests passing, build passes with no errors
+
+**Files changed:**
+- src/app/api/categories/route.ts (created)
+- src/app/api/categories/route.test.ts (created)
+- src/components/categorize/new-category-modal.tsx (created)
+- src/components/categorize/new-category-modal.test.tsx (created)
+- src/components/categorize/category-picker.tsx (updated with modal integration)
+- src/components/categorize/category-picker.test.tsx (updated with modal tests)
+- src/components/ui/input.tsx (added via shadcn)
+
+**Learnings:**
+- Vitest mocking for Supabase chainable methods: define mock functions at module level, mock the chain in beforeEach
+- Pattern: mockInsert.mockReturnValue({ select: mockSelect }), mockSelect.mockReturnValue({ single: mockSingle })
+- Dialog component from shadcn provides accessible modal with backdrop and animations
+- Context-aware modals: pass parentCategory prop to determine if creating main category or subcategory
+- Keyboard handlers should check if modal is open before processing shortcuts
+- Input ref with setTimeout focus for modal animation timing
+
+**Design decisions:**
+- Modal uses dark theme (bg-zinc-900, border-zinc-800) consistent with app
+- Emerald accent color for create button
+- Form validation disables create button when name is empty
+- Error state displayed below input field
+- Cancel button uses ghost variant for minimal visual weight
+- Modal clears state when opened (fresh start each time)
+
+---

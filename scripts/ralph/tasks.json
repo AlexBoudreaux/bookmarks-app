@@ -270,7 +270,7 @@
       ],
       "priority": 29,
       "dependsOn": ["CAT-003"],
-      "done": false
+      "done": true
     },
     {
       "id": "CAT-011",

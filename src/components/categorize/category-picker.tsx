@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Database } from '@/types/database'
+import { NewCategoryModal } from './new-category-modal'
 
 type Category = Database['public']['Tables']['categories']['Row']
 
@@ -18,6 +19,7 @@ interface CategoryPickerProps {
   selectedPairs?: CategoryPair[]
   onSelectedPairsChange?: (pairs: CategoryPair[]) => void
   isShaking?: boolean
+  onCategoryCreated?: (category: Category) => void
 }
 
 export function CategoryPicker({
@@ -26,9 +28,11 @@ export function CategoryPicker({
   selectedPairs: controlledPairs,
   onSelectedPairsChange,
   isShaking = false,
+  onCategoryCreated,
 }: CategoryPickerProps) {
   const [state, setState] = useState<PickerState>('main')
   const [selectedMain, setSelectedMain] = useState<Category | null>(null)
+  const [isNewCategoryModalOpen, setIsNewCategoryModalOpen] = useState(false)
 
   // Use controlled pairs if provided, otherwise manage internally
   const [internalPairs, setInternalPairs] = useState<CategoryPair[]>([])
@@ -42,6 +46,24 @@ export function CategoryPicker({
       setSelectedMain(null)
     }
   }, [controlledPairs])
+
+  const handleNewCategory = () => {
+    setIsNewCategoryModalOpen(true)
+  }
+
+  const handleCategoryCreated = (newCategory: Category) => {
+    // Notify parent to refresh categories list
+    onCategoryCreated?.(newCategory)
+
+    // If we created a main category while in main view, select it
+    if (state === 'main' && !newCategory.parent_id) {
+      handleMainCategorySelect(newCategory)
+    }
+    // If we created a subcategory while in subcategory view, select it
+    else if (state === 'subcategory' && newCategory.parent_id === selectedMain?.id) {
+      handleSubcategorySelect(newCategory)
+    }
+  }
 
   // Get main categories (no parent)
   const mainCategories = categories
@@ -78,8 +100,15 @@ export function CategoryPicker({
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Don't handle if typing in an input
+      // Don't handle if typing in an input or modal is open
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
+      // Handle minus key to open new category modal in main or subcategory state
+      if (e.key === '-' && (state === 'main' || state === 'subcategory')) {
+        e.preventDefault()
+        handleNewCategory()
         return
       }
 
@@ -195,6 +224,7 @@ export function CategoryPicker({
           <div className="relative group/btn">
             <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-xl opacity-0 group-hover/btn:opacity-100 blur transition-opacity" />
             <button
+              onClick={handleNewCategory}
               className="relative w-full bg-zinc-800/30 hover:bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-3 text-left transition-all"
               aria-label="New category - Press -"
             >
@@ -236,6 +266,7 @@ export function CategoryPicker({
           <div className="relative group/btn">
             <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-xl opacity-0 group-hover/btn:opacity-100 blur transition-opacity" />
             <button
+              onClick={handleNewCategory}
               className="relative w-full bg-zinc-800/30 hover:bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-3 text-left transition-all"
               aria-label="New subcategory - Press -"
             >
@@ -267,6 +298,14 @@ export function CategoryPicker({
           </div>
         </div>
       </div>
+
+      {/* New category modal */}
+      <NewCategoryModal
+        isOpen={isNewCategoryModalOpen}
+        onClose={() => setIsNewCategoryModalOpen(false)}
+        onCreated={handleCategoryCreated}
+        parentCategory={state === 'subcategory' ? selectedMain : null}
+      />
     </div>
   )
 }

@@ -1,7 +1,11 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CategoryPicker } from './category-picker'
+
+// Mock fetch for new category modal
+const mockFetch = vi.fn()
+global.fetch = mockFetch
 
 describe('CategoryPicker', () => {
   const mockCategories = [
@@ -187,6 +191,160 @@ describe('CategoryPicker', () => {
 
       // Should show hint about pressing Enter for more
       expect(screen.getByText(/Press Enter to add more/i)).toBeInTheDocument()
+    })
+  })
+
+  describe('New category modal', () => {
+    beforeEach(() => {
+      mockFetch.mockReset()
+    })
+
+    const mockCategories = [
+      { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
+      { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
+      { id: '1a', name: 'Landing Pages', parent_id: '1', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
+    ]
+
+    it('opens new main category modal when minus key is pressed in main state', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockCategories} onSelect={vi.fn()} />)
+
+      // Press minus key
+      await user.keyboard('-')
+
+      // Modal should open with "New Category" title
+      expect(screen.getByText('New Category')).toBeInTheDocument()
+      expect(screen.getByLabelText('Category name')).toBeInTheDocument()
+    })
+
+    it('opens new subcategory modal when minus key is pressed in subcategory state', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockCategories} onSelect={vi.fn()} />)
+
+      // First select a main category
+      await user.keyboard('1')
+
+      // Press minus key in subcategory view
+      await user.keyboard('-')
+
+      // Modal should open with "New Subcategory" title mentioning parent
+      expect(screen.getByText('New Subcategory')).toBeInTheDocument()
+      expect(screen.getByText(/under UI/)).toBeInTheDocument()
+    })
+
+    it('opens modal when New... button is clicked in main view', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockCategories} onSelect={vi.fn()} />)
+
+      // Click the "New..." button
+      const newButton = screen.getByRole('button', { name: /New category - Press -/ })
+      await user.click(newButton)
+
+      // Modal should open
+      expect(screen.getByText('New Category')).toBeInTheDocument()
+    })
+
+    it('opens modal when New... button is clicked in subcategory view', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockCategories} onSelect={vi.fn()} />)
+
+      // First select a main category
+      await user.keyboard('1')
+
+      // Click the "New..." button for subcategory
+      const newButton = screen.getByRole('button', { name: /New subcategory - Press -/ })
+      await user.click(newButton)
+
+      // Modal should open
+      expect(screen.getByText('New Subcategory')).toBeInTheDocument()
+    })
+
+    it('calls onCategoryCreated when new main category is created', async () => {
+      const user = userEvent.setup()
+      const onCategoryCreated = vi.fn()
+      const newCategory = {
+        id: 'new-id',
+        name: 'Test Category',
+        parent_id: null,
+        usage_count: 0,
+        sort_order: 0,
+        created_at: '2024-01-01',
+      }
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ category: newCategory }),
+      })
+
+      render(
+        <CategoryPicker
+          categories={mockCategories}
+          onSelect={vi.fn()}
+          onCategoryCreated={onCategoryCreated}
+        />
+      )
+
+      // Open modal
+      await user.keyboard('-')
+
+      // Fill in category name
+      const input = screen.getByLabelText('Category name')
+      await user.type(input, 'Test Category')
+
+      // Submit form
+      await user.click(screen.getByRole('button', { name: 'Create' }))
+
+      await waitFor(() => {
+        expect(onCategoryCreated).toHaveBeenCalledWith(newCategory)
+      })
+    })
+
+    it('calls onCategoryCreated when new subcategory is created', async () => {
+      const user = userEvent.setup()
+      const onCategoryCreated = vi.fn()
+      const newCategory = {
+        id: 'new-sub-id',
+        name: 'New Subcat',
+        parent_id: '1',
+        usage_count: 0,
+        sort_order: 0,
+        created_at: '2024-01-01',
+      }
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ category: newCategory }),
+      })
+
+      render(
+        <CategoryPicker
+          categories={mockCategories}
+          onSelect={vi.fn()}
+          onCategoryCreated={onCategoryCreated}
+        />
+      )
+
+      // Select main category first
+      await user.keyboard('1')
+
+      // Open modal for subcategory
+      await user.keyboard('-')
+
+      // Fill in subcategory name
+      const input = screen.getByLabelText('Category name')
+      await user.type(input, 'New Subcat')
+
+      // Submit form
+      await user.click(screen.getByRole('button', { name: 'Create' }))
+
+      await waitFor(() => {
+        expect(onCategoryCreated).toHaveBeenCalledWith(newCategory)
+      })
+
+      // Verify parent_id was passed to API
+      expect(mockFetch).toHaveBeenCalledWith('/api/categories', expect.objectContaining({
+        body: JSON.stringify({ name: 'New Subcat', parent_id: '1' }),
+      }))
     })
   })
 })
