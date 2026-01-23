@@ -13,6 +13,15 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
+// Mock Next.js navigation
+const mockPush = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockPush,
+    refresh: vi.fn(),
+  }),
+}));
+
 describe('Home Page', () => {
   beforeEach(() => {
     mockSelect.mockClear();

@@ -159,3 +159,39 @@ Started: 2026-01-22
 - Dark theme only (as specified in PRD)
 
 ---
+
+## 2026-01-23 - IMP-004
+- Implemented import summary modal component with TDD approach
+- Created ImportSummary component using shadcn Dialog and Button
+- Modal displays keeper count, to-categorize count, and tweet count with number formatting
+- Shows green success alert when boundary found, yellow warning when not found
+- Integrated modal into Dropzone component with file parsing logic
+- Added loading state with pulse animation during parsing
+- "Start Categorizing" button navigates to /categorize page
+- All 35 tests passing, build passes with no errors
+
+**Files changed:**
+- `src/components/import/import-summary.tsx` (created)
+- `src/components/import/import-summary.test.tsx` (created)
+- `src/components/import/dropzone.tsx` (updated - added file parsing and modal integration)
+- `src/components/ui/dialog.tsx` (added via shadcn)
+- `src/components/ui/button.tsx` (added via shadcn)
+- `src/app/page.test.tsx` (updated - added useRouter mock)
+
+**Learnings:**
+- When testing React components with text split across elements, query individual text parts instead of regex patterns
+- useRouter from next/navigation requires mocking in tests with push/refresh methods
+- TDD workflow: write failing tests, implement component, run tests until passing
+- shadcn Dialog component provides accessible modal with backdrop, close button, and animations
+- Number formatting with toLocaleString('en-US') adds thousand separators for readability
+- Loading states should disable interactive elements (pointer-events-none on label)
+- Fragment (<>) wrapping needed when returning multiple root elements
+
+**Design decisions:**
+- Sleek card-based layout with hover effects and gradient backgrounds
+- Color-coded status indicators (green for success, yellow for warning)
+- Large, readable numbers with supporting text beneath
+- Nested breakdown showing tweet vs non-tweet counts with bullet points
+- Consistent dark theme with primary color accents
+
+---
