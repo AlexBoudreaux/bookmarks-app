@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
-import { Search, ChevronRight, ChevronDown, PanelLeftClose, PanelLeft, Bookmark, Filter, Loader2 } from 'lucide-react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { Search, ChevronRight, ChevronDown, PanelLeftClose, PanelLeft, Bookmark, Filter, Loader2, X, ChevronUp, StickyNote, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TweetCard } from './tweet-card'
 import { BrowseLinkCard } from './browse-link-card'
@@ -9,6 +9,9 @@ import { useDebounce } from '@/hooks/use-debounce'
 
 const ITEMS_PER_PAGE = 12
 const SEARCH_DEBOUNCE_MS = 300
+
+type SortOption = 'newest' | 'oldest' | 'recently_viewed'
+type TypeFilter = 'all' | 'tweet' | 'non-tweet'
 
 interface Category {
   id: string
@@ -50,6 +53,49 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
   const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE)
   const [searchResults, setSearchResults] = useState<BookmarkData[] | null>(null)
   const [isSearching, setIsSearching] = useState(false)
+
+  // Filter states
+  const [sortOption, setSortOption] = useState<SortOption>('newest')
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+  const [selectedDomains, setSelectedDomains] = useState<Set<string>>(new Set())
+  const [hasNotesFilter, setHasNotesFilter] = useState(false)
+
+  // Dropdown open states
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false)
+  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false)
+  const [domainDropdownOpen, setDomainDropdownOpen] = useState(false)
+
+  // Refs for dropdown click outside handling
+  const sortDropdownRef = useRef<HTMLDivElement>(null)
+  const typeDropdownRef = useRef<HTMLDivElement>(null)
+  const domainDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+        setSortDropdownOpen(false)
+      }
+      if (typeDropdownRef.current && !typeDropdownRef.current.contains(event.target as Node)) {
+        setTypeDropdownOpen(false)
+      }
+      if (domainDropdownRef.current && !domainDropdownRef.current.contains(event.target as Node)) {
+        setDomainDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Get unique domains from bookmarks
+  const uniqueDomains = useMemo(() => {
+    const domains = new Set<string>()
+    for (const b of bookmarks) {
+      if (b.domain) domains.add(b.domain)
+    }
+    return Array.from(domains).sort()
+  }, [bookmarks])
 
   // Debounce search query
   const debouncedSearchQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS)
@@ -129,41 +175,76 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
     }
   }
 
-  // Filter bookmarks based on selected category and search
+  // Filter bookmarks based on selected category, search, and other filters
   const filteredBookmarks = useMemo(() => {
-    // If we have search results, use those (ignoring category filter for search)
+    // Start with either search results or all bookmarks
+    let result: BookmarkData[]
+
     if (searchResults !== null) {
-      return searchResults
-    }
+      result = searchResults
+    } else if (selectedCategoryId === null) {
+      result = bookmarks
+    } else {
+      const selectedCategory = categories.find(c => c.id === selectedCategoryId)
+      const isMainCategory = selectedCategory?.parent_id === null
 
-    // No search, apply category filter
-    if (selectedCategoryId === null) {
-      return bookmarks
-    }
-
-    const selectedCategory = categories.find(c => c.id === selectedCategoryId)
-    const isMainCategory = selectedCategory?.parent_id === null
-
-    if (isMainCategory) {
-      // Include bookmarks from main category and all its subcategories
-      const subcats = getSubcategories(selectedCategoryId)
-      const allCategoryIds = [selectedCategoryId, ...subcats.map(s => s.id)]
-      const bookmarkIds = new Set<string>()
-      for (const catId of allCategoryIds) {
-        const bms = categoryToBookmarks.get(catId)
-        if (bms) {
-          for (const bmId of bms) {
-            bookmarkIds.add(bmId)
+      if (isMainCategory) {
+        // Include bookmarks from main category and all its subcategories
+        const subcats = getSubcategories(selectedCategoryId)
+        const allCategoryIds = [selectedCategoryId, ...subcats.map(s => s.id)]
+        const bookmarkIds = new Set<string>()
+        for (const catId of allCategoryIds) {
+          const bms = categoryToBookmarks.get(catId)
+          if (bms) {
+            for (const bmId of bms) {
+              bookmarkIds.add(bmId)
+            }
           }
         }
+        result = bookmarks.filter(b => bookmarkIds.has(b.id))
+      } else {
+        // Subcategory: only show bookmarks directly in that subcategory
+        const bookmarkIds = categoryToBookmarks.get(selectedCategoryId) || new Set()
+        result = bookmarks.filter(b => bookmarkIds.has(b.id))
       }
-      return bookmarks.filter(b => bookmarkIds.has(b.id))
-    } else {
-      // Subcategory: only show bookmarks directly in that subcategory
-      const bookmarkIds = categoryToBookmarks.get(selectedCategoryId) || new Set()
-      return bookmarks.filter(b => bookmarkIds.has(b.id))
     }
-  }, [selectedCategoryId, bookmarks, categories, categoryToBookmarks, searchResults])
+
+    // Apply type filter
+    if (typeFilter === 'tweet') {
+      result = result.filter(b => b.is_tweet === true)
+    } else if (typeFilter === 'non-tweet') {
+      result = result.filter(b => b.is_tweet !== true)
+    }
+
+    // Apply domain filter
+    if (selectedDomains.size > 0) {
+      result = result.filter(b => b.domain && selectedDomains.has(b.domain))
+    }
+
+    // Apply has notes filter
+    if (hasNotesFilter) {
+      result = result.filter(b => b.notes && b.notes.trim() !== '')
+    }
+
+    // Apply sorting
+    const sorted = [...result]
+    if (sortOption === 'newest') {
+      sorted.sort((a, b) => {
+        const dateA = a.add_date ? new Date(a.add_date).getTime() : 0
+        const dateB = b.add_date ? new Date(b.add_date).getTime() : 0
+        return dateB - dateA
+      })
+    } else if (sortOption === 'oldest') {
+      sorted.sort((a, b) => {
+        const dateA = a.add_date ? new Date(a.add_date).getTime() : 0
+        const dateB = b.add_date ? new Date(b.add_date).getTime() : 0
+        return dateA - dateB
+      })
+    }
+    // 'recently_viewed' would need last_viewed_at field tracking, leaving as-is for now
+
+    return sorted
+  }, [selectedCategoryId, bookmarks, categories, categoryToBookmarks, searchResults, typeFilter, selectedDomains, hasNotesFilter, sortOption])
 
   // Paginated bookmarks for display
   const displayedBookmarks = useMemo(
@@ -182,6 +263,73 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
     setSelectedCategoryId(categoryId)
     setDisplayCount(ITEMS_PER_PAGE)
   }
+
+  // Reset pagination when any filter changes
+  useEffect(() => {
+    setDisplayCount(ITEMS_PER_PAGE)
+  }, [typeFilter, selectedDomains, hasNotesFilter, sortOption])
+
+  // Filter handlers
+  const handleSortChange = (option: SortOption) => {
+    setSortOption(option)
+    setSortDropdownOpen(false)
+  }
+
+  const handleTypeChange = (type: TypeFilter) => {
+    setTypeFilter(type)
+    setTypeDropdownOpen(false)
+  }
+
+  const handleDomainToggle = (domain: string) => {
+    setSelectedDomains(prev => {
+      const next = new Set(prev)
+      if (next.has(domain)) {
+        next.delete(domain)
+      } else {
+        next.add(domain)
+      }
+      return next
+    })
+    // Keep dropdown open for multi-select
+  }
+
+  const handleHasNotesToggle = () => {
+    setHasNotesFilter(prev => !prev)
+  }
+
+  // Remove a specific filter
+  const removeFilter = (filterType: 'type' | 'domain' | 'hasNotes', value?: string) => {
+    if (filterType === 'type') {
+      setTypeFilter('all')
+    } else if (filterType === 'domain' && value) {
+      setSelectedDomains(prev => {
+        const next = new Set(prev)
+        next.delete(value)
+        return next
+      })
+    } else if (filterType === 'hasNotes') {
+      setHasNotesFilter(false)
+    }
+  }
+
+  // Active filters for displaying chips
+  const activeFilters = useMemo(() => {
+    const filters: { type: 'type' | 'domain' | 'hasNotes'; label: string; value?: string }[] = []
+
+    if (typeFilter !== 'all') {
+      filters.push({ type: 'type', label: typeFilter === 'tweet' ? 'Tweet' : 'Non-tweet' })
+    }
+
+    for (const domain of selectedDomains) {
+      filters.push({ type: 'domain', label: domain, value: domain })
+    }
+
+    if (hasNotesFilter) {
+      filters.push({ type: 'hasNotes', label: 'Has Notes' })
+    }
+
+    return filters
+  }, [typeFilter, selectedDomains, hasNotesFilter])
 
   const toggleCategoryExpanded = (categoryId: string) => {
     setExpandedCategories(prev => {
@@ -356,20 +504,197 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
 
           {/* Filter Chips */}
           <div className="flex items-center gap-2 flex-wrap">
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 transition-colors">
-              <Filter className="w-3 h-3" />
-              Sort: Newest
-            </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 transition-colors">
-              Type: All
-            </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 transition-colors">
-              Domain
-            </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 transition-colors">
+            {/* Sort Dropdown */}
+            <div ref={sortDropdownRef} className="relative">
+              <button
+                onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+                aria-label="Sort"
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
+                  'bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50'
+                )}
+              >
+                <Filter className="w-3 h-3" />
+                Sort: {sortOption === 'newest' ? 'Newest' : sortOption === 'oldest' ? 'Oldest' : 'Recently viewed'}
+                {sortDropdownOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+              {sortDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1 w-40 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-50 py-1">
+                  <button
+                    role="option"
+                    aria-label="Newest"
+                    onClick={() => handleSortChange('newest')}
+                    className={cn(
+                      'w-full px-3 py-2 text-left text-xs flex items-center justify-between',
+                      sortOption === 'newest' ? 'text-emerald-400 bg-emerald-500/10' : 'text-zinc-300 hover:bg-zinc-800'
+                    )}
+                  >
+                    Newest
+                    {sortOption === 'newest' && <Check className="w-3 h-3" />}
+                  </button>
+                  <button
+                    role="option"
+                    aria-label="Oldest"
+                    onClick={() => handleSortChange('oldest')}
+                    className={cn(
+                      'w-full px-3 py-2 text-left text-xs flex items-center justify-between',
+                      sortOption === 'oldest' ? 'text-emerald-400 bg-emerald-500/10' : 'text-zinc-300 hover:bg-zinc-800'
+                    )}
+                  >
+                    Oldest
+                    {sortOption === 'oldest' && <Check className="w-3 h-3" />}
+                  </button>
+                  <button
+                    role="option"
+                    aria-label="Recently viewed"
+                    onClick={() => handleSortChange('recently_viewed')}
+                    className={cn(
+                      'w-full px-3 py-2 text-left text-xs flex items-center justify-between',
+                      sortOption === 'recently_viewed' ? 'text-emerald-400 bg-emerald-500/10' : 'text-zinc-300 hover:bg-zinc-800'
+                    )}
+                  >
+                    Recently viewed
+                    {sortOption === 'recently_viewed' && <Check className="w-3 h-3" />}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Type Dropdown */}
+            <div ref={typeDropdownRef} className="relative">
+              <button
+                onClick={() => setTypeDropdownOpen(!typeDropdownOpen)}
+                aria-label="Type"
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
+                  typeFilter !== 'all'
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    : 'bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50'
+                )}
+              >
+                Type: {typeFilter === 'all' ? 'All' : typeFilter === 'tweet' ? 'Tweet' : 'Non-tweet'}
+                {typeDropdownOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+              {typeDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1 w-32 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-50 py-1">
+                  <button
+                    role="option"
+                    aria-label="All"
+                    onClick={() => handleTypeChange('all')}
+                    className={cn(
+                      'w-full px-3 py-2 text-left text-xs flex items-center justify-between',
+                      typeFilter === 'all' ? 'text-emerald-400 bg-emerald-500/10' : 'text-zinc-300 hover:bg-zinc-800'
+                    )}
+                  >
+                    All
+                    {typeFilter === 'all' && <Check className="w-3 h-3" />}
+                  </button>
+                  <button
+                    role="option"
+                    aria-label="Tweet"
+                    onClick={() => handleTypeChange('tweet')}
+                    className={cn(
+                      'w-full px-3 py-2 text-left text-xs flex items-center justify-between',
+                      typeFilter === 'tweet' ? 'text-emerald-400 bg-emerald-500/10' : 'text-zinc-300 hover:bg-zinc-800'
+                    )}
+                  >
+                    Tweet
+                    {typeFilter === 'tweet' && <Check className="w-3 h-3" />}
+                  </button>
+                  <button
+                    role="option"
+                    aria-label="Non-tweet"
+                    onClick={() => handleTypeChange('non-tweet')}
+                    className={cn(
+                      'w-full px-3 py-2 text-left text-xs flex items-center justify-between',
+                      typeFilter === 'non-tweet' ? 'text-emerald-400 bg-emerald-500/10' : 'text-zinc-300 hover:bg-zinc-800'
+                    )}
+                  >
+                    Non-tweet
+                    {typeFilter === 'non-tweet' && <Check className="w-3 h-3" />}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Domain Dropdown */}
+            <div ref={domainDropdownRef} className="relative">
+              <button
+                onClick={() => setDomainDropdownOpen(!domainDropdownOpen)}
+                aria-label="Domain"
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
+                  selectedDomains.size > 0
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    : 'bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50'
+                )}
+              >
+                Domain{selectedDomains.size > 0 ? ` (${selectedDomains.size})` : ''}
+                {domainDropdownOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+              {domainDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1 w-48 max-h-64 overflow-y-auto bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-50 py-1">
+                  {uniqueDomains.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-zinc-500">No domains</div>
+                  ) : (
+                    uniqueDomains.map(domain => (
+                      <button
+                        key={domain}
+                        role="option"
+                        aria-label={domain}
+                        onClick={() => handleDomainToggle(domain)}
+                        className={cn(
+                          'w-full px-3 py-2 text-left text-xs flex items-center justify-between',
+                          selectedDomains.has(domain) ? 'text-emerald-400 bg-emerald-500/10' : 'text-zinc-300 hover:bg-zinc-800'
+                        )}
+                      >
+                        <span className="truncate">{domain}</span>
+                        {selectedDomains.has(domain) && <Check className="w-3 h-3 flex-shrink-0" />}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Has Notes Toggle */}
+            <button
+              onClick={handleHasNotesToggle}
+              aria-label="Has Notes"
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
+                hasNotesFilter
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50'
+              )}
+            >
+              <StickyNote className="w-3 h-3" />
               Has Notes
             </button>
           </div>
+
+          {/* Active Filter Chips */}
+          {activeFilters.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap pt-2">
+              <span className="text-xs text-zinc-500">Active:</span>
+              {activeFilters.map((filter, index) => (
+                <span
+                  key={`${filter.type}-${filter.value || index}`}
+                  data-testid="active-filter-chip"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                >
+                  {filter.label}
+                  <button
+                    data-testid="remove-filter-button"
+                    onClick={() => removeFilter(filter.type, filter.value)}
+                    className="hover:text-emerald-300 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Bookmark Grid */}

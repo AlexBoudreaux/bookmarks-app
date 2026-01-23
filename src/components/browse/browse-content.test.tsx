@@ -517,4 +517,358 @@ describe('BrowseContent', () => {
       }, { timeout: 500 })
     })
   })
+
+  // BRW-005: Filter chips and dropdowns tests
+  describe('Filter chips and dropdowns', () => {
+    // Extended mock data for filter testing
+    const filterTestBookmarks = [
+      { id: '1', url: 'https://twitter.com/test/status/123', title: 'Test Tweet', is_tweet: true, is_categorized: true, domain: 'twitter.com', notes: 'Some notes here', og_image: null, add_date: '2024-01-15T00:00:00Z' },
+      { id: '2', url: 'https://github.com/example/repo', title: 'GitHub Repo', is_tweet: false, is_categorized: true, domain: 'github.com', notes: null, og_image: null, add_date: '2024-01-10T00:00:00Z' },
+      { id: '3', url: 'https://example.com/article', title: 'Example Article', is_tweet: false, is_categorized: true, domain: 'example.com', notes: 'Important article', og_image: null, add_date: '2024-01-20T00:00:00Z' },
+      { id: '4', url: 'https://twitter.com/other/status/456', title: 'Another Tweet', is_tweet: true, is_categorized: true, domain: 'twitter.com', notes: null, og_image: null, add_date: '2024-01-05T00:00:00Z' },
+    ]
+
+    describe('Sort dropdown', () => {
+      it('renders sort dropdown with default "Newest" option', () => {
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        expect(screen.getByRole('button', { name: /sort/i })).toBeInTheDocument()
+        expect(screen.getByText(/newest/i)).toBeInTheDocument()
+      })
+
+      it('clicking sort dropdown shows options: Newest, Oldest, Recently viewed', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        const sortButton = screen.getByRole('button', { name: /sort/i })
+        await user.click(sortButton)
+
+        expect(screen.getByRole('option', { name: /newest/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /oldest/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /recently viewed/i })).toBeInTheDocument()
+      })
+
+      it('selecting "Oldest" sorts bookmarks by oldest first', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        const sortButton = screen.getByRole('button', { name: /sort/i })
+        await user.click(sortButton)
+
+        const oldestOption = screen.getByRole('option', { name: /oldest/i })
+        await user.click(oldestOption)
+
+        // First bookmark should now be "Another Tweet" (oldest date)
+        const grid = screen.getByTestId('bookmark-grid')
+        const articles = within(grid).getAllByRole('article')
+        expect(articles[0]).toHaveTextContent('Another Tweet')
+      })
+
+      it('selecting "Newest" sorts bookmarks by newest first', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        // First bookmark should be "Example Article" (newest date: 2024-01-20)
+        const grid = screen.getByTestId('bookmark-grid')
+        const articles = within(grid).getAllByRole('article')
+        expect(articles[0]).toHaveTextContent('Example Article')
+      })
+    })
+
+    describe('Type toggle', () => {
+      it('renders type filter with default "All" option', () => {
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        expect(screen.getByRole('button', { name: /type/i })).toBeInTheDocument()
+      })
+
+      it('clicking type toggle shows options: All, Tweet, Non-tweet', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        const typeButton = screen.getByRole('button', { name: /type/i })
+        await user.click(typeButton)
+
+        expect(screen.getByRole('option', { name: /^all$/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /^tweet$/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /^non-tweet$/i })).toBeInTheDocument()
+      })
+
+      it('selecting "Tweet" filters to only tweet bookmarks', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        const typeButton = screen.getByRole('button', { name: /type/i })
+        await user.click(typeButton)
+
+        const tweetOption = screen.getByRole('option', { name: /^tweet$/i })
+        await user.click(tweetOption)
+
+        // Should only show tweet bookmarks
+        const grid = screen.getByTestId('bookmark-grid')
+        const articles = within(grid).getAllByRole('article')
+        expect(articles).toHaveLength(2)
+        expect(within(grid).getByText('TweetCard: Test Tweet')).toBeInTheDocument()
+        expect(within(grid).getByText('TweetCard: Another Tweet')).toBeInTheDocument()
+      })
+
+      it('selecting "Non-tweet" filters to only non-tweet bookmarks', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        const typeButton = screen.getByRole('button', { name: /type/i })
+        await user.click(typeButton)
+
+        const nonTweetOption = screen.getByRole('option', { name: /non-tweet/i })
+        await user.click(nonTweetOption)
+
+        // Should only show non-tweet bookmarks
+        const grid = screen.getByTestId('bookmark-grid')
+        const articles = within(grid).getAllByRole('article')
+        expect(articles).toHaveLength(2)
+        expect(within(grid).getByText('LinkCard: GitHub Repo')).toBeInTheDocument()
+        expect(within(grid).getByText('LinkCard: Example Article')).toBeInTheDocument()
+      })
+    })
+
+    describe('Domain multi-select', () => {
+      it('renders domain filter button', () => {
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        expect(screen.getByRole('button', { name: /domain/i })).toBeInTheDocument()
+      })
+
+      it('clicking domain filter shows unique domains from bookmarks', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        const domainButton = screen.getByRole('button', { name: /domain/i })
+        await user.click(domainButton)
+
+        expect(screen.getByRole('option', { name: /twitter\.com/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /github\.com/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /example\.com/i })).toBeInTheDocument()
+      })
+
+      it('selecting a domain filters to only bookmarks from that domain', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        const domainButton = screen.getByRole('button', { name: /domain/i })
+        await user.click(domainButton)
+
+        const twitterOption = screen.getByRole('option', { name: /twitter\.com/i })
+        await user.click(twitterOption)
+
+        // Should only show twitter.com bookmarks
+        const grid = screen.getByTestId('bookmark-grid')
+        const articles = within(grid).getAllByRole('article')
+        expect(articles).toHaveLength(2)
+      })
+
+      it('can select multiple domains', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        const domainButton = screen.getByRole('button', { name: /domain/i })
+        await user.click(domainButton)
+
+        // Select twitter.com (dropdown stays open for multi-select)
+        const twitterOption = screen.getByRole('option', { name: /twitter\.com/i })
+        await user.click(twitterOption)
+
+        // Select github.com too (dropdown should still be open)
+        const githubOption = screen.getByRole('option', { name: /github\.com/i })
+        await user.click(githubOption)
+
+        // Close dropdown by clicking button again
+        await user.click(domainButton)
+
+        // Should show twitter.com and github.com bookmarks (3 total)
+        const grid = screen.getByTestId('bookmark-grid')
+        const articles = within(grid).getAllByRole('article')
+        expect(articles).toHaveLength(3)
+      })
+    })
+
+    describe('Has notes toggle', () => {
+      it('renders has notes toggle button', () => {
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        expect(screen.getByRole('button', { name: /has notes/i })).toBeInTheDocument()
+      })
+
+      it('clicking has notes toggle filters to only bookmarks with notes', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        const hasNotesButton = screen.getByRole('button', { name: /has notes/i })
+        await user.click(hasNotesButton)
+
+        // Should only show bookmarks with notes (Test Tweet and Example Article)
+        const grid = screen.getByTestId('bookmark-grid')
+        const articles = within(grid).getAllByRole('article')
+        expect(articles).toHaveLength(2)
+        expect(within(grid).getByText('TweetCard: Test Tweet')).toBeInTheDocument()
+        expect(within(grid).getByText('LinkCard: Example Article')).toBeInTheDocument()
+      })
+
+      it('clicking has notes toggle again removes the filter', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        const hasNotesButton = screen.getByRole('button', { name: /has notes/i })
+
+        // Enable filter
+        await user.click(hasNotesButton)
+
+        let grid = screen.getByTestId('bookmark-grid')
+        expect(within(grid).getAllByRole('article')).toHaveLength(2)
+
+        // Disable filter
+        await user.click(hasNotesButton)
+
+        grid = screen.getByTestId('bookmark-grid')
+        expect(within(grid).getAllByRole('article')).toHaveLength(4)
+      })
+    })
+
+    describe('Active filter chips', () => {
+      it('shows active filter chip when type filter is applied', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        const typeButton = screen.getByRole('button', { name: /type/i })
+        await user.click(typeButton)
+
+        const tweetOption = screen.getByRole('option', { name: /^tweet$/i })
+        await user.click(tweetOption)
+
+        // Should show active filter chip
+        expect(screen.getByTestId('active-filter-chip')).toBeInTheDocument()
+        expect(screen.getByTestId('active-filter-chip')).toHaveTextContent(/tweet/i)
+      })
+
+      it('shows active filter chip when domain filter is applied', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        const domainButton = screen.getByRole('button', { name: /domain/i })
+        await user.click(domainButton)
+
+        const twitterOption = screen.getByRole('option', { name: /twitter\.com/i })
+        await user.click(twitterOption)
+
+        expect(screen.getByTestId('active-filter-chip')).toBeInTheDocument()
+        expect(screen.getByTestId('active-filter-chip')).toHaveTextContent(/twitter\.com/i)
+      })
+
+      it('shows active filter chip when has notes filter is enabled', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        const hasNotesButton = screen.getByRole('button', { name: /has notes/i })
+        await user.click(hasNotesButton)
+
+        expect(screen.getByTestId('active-filter-chip')).toBeInTheDocument()
+        expect(screen.getByTestId('active-filter-chip')).toHaveTextContent(/has notes/i)
+      })
+
+      it('clicking X on active filter chip removes that filter', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        // Apply has notes filter
+        const hasNotesButton = screen.getByRole('button', { name: /has notes/i })
+        await user.click(hasNotesButton)
+
+        let grid = screen.getByTestId('bookmark-grid')
+        expect(within(grid).getAllByRole('article')).toHaveLength(2)
+
+        // Click the X on the active filter chip
+        const removeButton = screen.getByTestId('remove-filter-button')
+        await user.click(removeButton)
+
+        // Filter should be removed
+        grid = screen.getByTestId('bookmark-grid')
+        expect(within(grid).getAllByRole('article')).toHaveLength(4)
+        expect(screen.queryByTestId('active-filter-chip')).not.toBeInTheDocument()
+      })
+
+      it('shows multiple active filter chips when multiple filters applied', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        // Apply type filter
+        const typeButton = screen.getByRole('button', { name: /type/i })
+        await user.click(typeButton)
+        const tweetOption = screen.getByRole('option', { name: /^tweet$/i })
+        await user.click(tweetOption)
+
+        // Apply has notes filter
+        const hasNotesButton = screen.getByRole('button', { name: /has notes/i })
+        await user.click(hasNotesButton)
+
+        // Should show 2 active filter chips
+        const chips = screen.getAllByTestId('active-filter-chip')
+        expect(chips).toHaveLength(2)
+      })
+    })
+
+    describe('Filter combinations', () => {
+      it('type and has notes filters work together', async () => {
+        const user = userEvent.setup()
+        render(<BrowseContent categories={[]} bookmarks={filterTestBookmarks} bookmarkCategories={[]} />)
+
+        // Apply tweet type filter
+        const typeButton = screen.getByRole('button', { name: /type/i })
+        await user.click(typeButton)
+        const tweetOption = screen.getByRole('option', { name: /^tweet$/i })
+        await user.click(tweetOption)
+
+        // Apply has notes filter
+        const hasNotesButton = screen.getByRole('button', { name: /has notes/i })
+        await user.click(hasNotesButton)
+
+        // Should only show tweets with notes (just Test Tweet)
+        const grid = screen.getByTestId('bookmark-grid')
+        const articles = within(grid).getAllByRole('article')
+        expect(articles).toHaveLength(1)
+        expect(within(grid).getByText('TweetCard: Test Tweet')).toBeInTheDocument()
+      })
+
+      it('filters reset pagination', async () => {
+        const user = userEvent.setup()
+        const manyBookmarks = Array.from({ length: 20 }, (_, i) => ({
+          id: `bm-${i}`,
+          url: `https://twitter.com/test/status/${i}`,
+          title: `Bookmark ${i}`,
+          is_tweet: i < 10, // First 10 are tweets
+          is_categorized: true,
+          domain: 'twitter.com',
+          notes: i < 5 ? 'Has notes' : null, // First 5 have notes
+          og_image: null,
+          add_date: `2024-01-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
+        }))
+
+        render(<BrowseContent categories={[]} bookmarks={manyBookmarks} bookmarkCategories={[]} />)
+
+        // Click load more to expand
+        await user.click(screen.getByTestId('load-more-button'))
+
+        let grid = screen.getByTestId('bookmark-grid')
+        expect(within(grid).getAllByRole('article')).toHaveLength(20)
+
+        // Apply type filter
+        const typeButton = screen.getByRole('button', { name: /type/i })
+        await user.click(typeButton)
+        const tweetOption = screen.getByRole('option', { name: /^tweet$/i })
+        await user.click(tweetOption)
+
+        // Should show only tweets with pagination reset
+        grid = screen.getByTestId('bookmark-grid')
+        expect(within(grid).getAllByRole('article')).toHaveLength(10)
+      })
+    })
+  })
 })

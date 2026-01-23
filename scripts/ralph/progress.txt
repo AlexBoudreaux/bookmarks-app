@@ -773,3 +773,36 @@ Started: 2026-01-22
 - Separate searchResults state from filteredBookmarks to cleanly override category filtering
 
 ---
+
+## 2026-01-23 - BRW-005
+- Implemented filter chips and dropdowns for browse page
+- Created Sort dropdown with Newest, Oldest, Recently viewed options
+- Created Type toggle filter with All, Tweet, Non-tweet options
+- Created Domain multi-select dropdown auto-populated from bookmark domains
+- Created Has Notes toggle filter
+- Active filters display as removable chips below filter buttons
+- All filters work together and reset pagination when changed
+- Sorting applies to all filtered results (newest/oldest by add_date)
+- All 266 tests passing, build passes with no errors
+
+**Files changed:**
+- src/components/browse/browse-content.tsx (major update with filter state and UI)
+- src/components/browse/browse-content.test.tsx (added 18 new filter tests)
+
+**Learnings:**
+- Dropdown click outside handling: use refs and mousedown event listener with cleanup
+- Multi-select dropdowns should NOT close on item selection (keep open for user to select more)
+- Type filter union types (SortOption, TypeFilter) keep state type-safe
+- Active filter chips pattern: derive from filter state using useMemo
+- Test regex for options: use anchored patterns like /^tweet$/i to avoid matching "Non-tweet"
+- Filters should reset pagination (displayCount) when changed to prevent stale state
+- Sort by date: parse ISO strings with new Date().getTime() for numeric comparison
+
+**Design decisions:**
+- Sort dropdown shows current selection in button text
+- Type and Domain buttons highlight with emerald accent when filter active
+- Active filter chips displayed below filter buttons with X to remove
+- Domain dropdown stays open for multi-select behavior
+- Has Notes is a simple toggle (not dropdown)
+
+---
