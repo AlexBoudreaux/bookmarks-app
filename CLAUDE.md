@@ -1,0 +1,174 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Philosophy
+
+This codebase will outlive you. Every shortcut becomes someone else's burden. Every hack compounds into technical debt that slows the whole team down.
+
+You are not just writing code. You are shaping the future of this project. The patterns you establish will be copied. The corners you cut will be cut again.
+
+Fight entropy. Leave the codebase better than you found it.
+
+## Commands
+
+```bash
+npm run dev      # Start dev server at localhost:3000
+npm run build    # Production build
+npm run lint     # ESLint
+```
+
+### Supabase
+
+```bash
+supabase db push              # Push migrations to remote
+supabase db diff -f <name>    # Generate migration from schema changes
+supabase gen types typescript # Generate TypeScript types from DB
+```
+
+### shadcn/ui
+
+```bash
+npx shadcn@latest add <component>  # Add component (e.g., button, card)
+```
+
+## Architecture
+
+Personal bookmark categorization app. Import Chrome bookmarks, categorize via keyboard-driven UX, search/filter later. Single-user, no auth.
+
+### Tech Stack
+
+- Next.js 16 (App Router) + TypeScript
+- Tailwind CSS v4 + shadcn/ui (new-york style, dark mode only)
+- Supabase (Postgres + pgvector for semantic search)
+- react-tweet for tweet embeds (no API key)
+- Vercel deployment
+
+### Project Structure
+
+```
+src/
+  app/           # Next.js App Router pages
+    page.tsx     # Home/import page
+    /categorize  # Keyboard-driven categorization flow
+    /browse      # Filter + search
+    /categories  # Category management
+    /api         # API routes
+  lib/
+    supabase.ts  # Supabase client
+    utils.ts     # cn() helper for shadcn
+  components/
+    ui/          # shadcn components
+supabase/
+  migrations/    # SQL migrations
+```
+
+### Database Schema
+
+Four tables: `bookmarks`, `categories` (hierarchical), `settings` (key-value), `bookmark_categories` (junction). Full-text search via `fts` column. See `supabase/migrations/001_initial_schema.sql` for details.
+
+### Key Concepts
+
+- **Boundary**: Divides Chrome bookmarks into "keepers" (before) and "to categorize" (after). Set by folder name + last URL.
+- **Categories**: Hierarchical (main + subcategory). Sorted by usage count. Keys 1-9, 0 map to top 10 most used.
+- **Skipped bookmarks**: Marked `is_skipped=true`, excluded from browse and re-import.
+
+## Conventions
+
+- Path alias: `@/*` maps to `./src/*`
+- Icons: lucide-react
+- Styling: Tailwind + `cn()` utility from `@/lib/utils`
+
+## Skills to Use
+
+**Always load these skills for relevant work:**
+
+- **react-best-practices** (Vercel): Load when writing ANY React/Next.js code. Contains 40+ performance rules. Critical for avoiding waterfalls, bundle bloat, and re-render issues. Command: `Load the react-best-practices skill`
+
+- **frontend-design**: Load when building UI components. This app should look like a polished personal dashboard. Not bold or flashy. Sleek, minimal, single accent color, dark theme only. No landing page aesthetics.
+
+- **dev-browser**: Load for E2E testing and visual verification. Use to take screenshots, verify UI looks correct, test keyboard interactions.
+
+## Research Requirements
+
+**Before implementing anything involving external services:**
+
+1. **Supabase**: WebSearch for current docs. Query syntax, RLS policies, and edge functions change. Don't trust internal knowledge.
+
+2. **OpenAI/Embeddings**: WebSearch for current API. Models deprecate, dimensions change, pricing shifts.
+
+3. **react-tweet**: WebSearch for current usage. Twitter/X API changes frequently.
+
+4. **New packages**: Search npm, check last publish date, weekly downloads, GitHub issues. Don't add abandoned packages.
+
+**Before making architectural decisions:**
+
+1. Grep/read existing code to understand current patterns
+2. Check PRD.md for design decisions already made
+3. Check progress.txt for learnings from previous iterations
+
+## Automated Coding Rules (Ralph)
+
+### TDD Required
+
+1. Write failing tests FIRST describing expected behavior
+2. Implement until tests pass
+3. Never mark a task complete without passing tests
+4. Run full test suite before committing
+
+### Verification Gates
+
+Before marking any task complete:
+1. `npm run build` passes (type errors caught)
+2. `npm run test` passes (all tests green)
+3. For UI changes: verify with dev-browser screenshot
+4. For API/external integrations: verify with actual API call
+
+### Knowledge Persistence
+
+After completing a task, if you learned something reusable:
+1. Add patterns to `scripts/ralph/progress.txt` (Codebase Patterns section at top)
+2. Add permanent rules to this CLAUDE.md file
+3. Update PRD.md if design decisions were made
+
+### Subagents
+
+Use Task tool with subagents for:
+- Exploring codebase: `subagent_type=Explore`
+- Research tasks: `subagent_type=general-purpose`
+- Parallel independent work: multiple Task calls in one message
+
+### Don't Assume
+
+- Don't assume Supabase queries work without testing
+- Don't assume keyboard shortcuts work without testing
+- Don't assume parsing works without edge case tests
+- Don't assume UI looks right without screenshot verification
+- When in doubt, write a test
+
+## Testing Strategy
+
+### Stack
+- **Vitest**: Unit and integration tests (fast, native ESM)
+- **Playwright**: E2E tests (critical flows only)
+
+### What to Unit Test
+- Chrome HTML parser (pure function)
+- Tweet ID extraction
+- Export to Chrome HTML formatter
+- Category sorting logic
+- Supabase query helpers
+- Search logic
+- Keyboard shortcut state machine
+
+### What to E2E Test (minimal)
+- Import flow: drop file → see summary → start categorizing
+- Categorize one bookmark: keyboard shortcuts work, saves to DB
+
+### Commands
+```bash
+npm run test           # Run all tests
+npm run test:unit      # Unit tests only
+npm run test:e2e       # E2E tests only
+npm run test:coverage  # Coverage report
+```

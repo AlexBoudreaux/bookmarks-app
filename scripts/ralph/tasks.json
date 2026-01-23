@@ -1,0 +1,487 @@
+{
+  "project": "bookmarks-app",
+  "tasks": [
+    {
+      "id": "SETUP-001",
+      "title": "Setup Vitest test infrastructure",
+      "description": "Create a sample test to verify Vitest is working. Test should import from @/lib/utils and verify cn() works.",
+      "acceptanceCriteria": [
+        "Sample test exists in src/lib/utils.test.ts",
+        "Test imports cn() and verifies it merges classes correctly",
+        "npm run test passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "done": false
+    },
+    {
+      "id": "SETUP-002",
+      "title": "Generate Supabase TypeScript types",
+      "description": "Run supabase gen types to create type definitions from the database schema. Create src/types/database.ts.",
+      "acceptanceCriteria": [
+        "src/types/database.ts exists with generated types",
+        "Types include bookmarks, categories, settings, bookmark_categories tables",
+        "npm run build passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "done": false
+    },
+    {
+      "id": "SETUP-003",
+      "title": "Seed starter categories",
+      "description": "Create a migration or seed script to insert the starter categories from PRD into the categories table.",
+      "acceptanceCriteria": [
+        "Migration file creates starter categories (UI, Image Gen, General Dev, AI Dev, etc.)",
+        "Each main category has its subcategories",
+        "supabase db push succeeds"
+      ],
+      "priority": 3,
+      "dependsOn": ["SETUP-002"],
+      "done": false
+    },
+    {
+      "id": "IMP-001",
+      "title": "Chrome HTML bookmark parser",
+      "description": "Create src/lib/parse-bookmarks.ts that parses Chrome's Netscape bookmark format HTML. Extract URL, title, add_date, folder path. Detect tweet URLs.",
+      "acceptanceCriteria": [
+        "parseBookmarksHtml(html) returns array of bookmark objects",
+        "Each bookmark has: url, title, addDate, folderPath, isTweet",
+        "Handles nested folders correctly",
+        "Unit tests cover happy path and malformed HTML",
+        "npm run test passes"
+      ],
+      "priority": 10,
+      "dependsOn": ["SETUP-001"],
+      "done": false
+    },
+    {
+      "id": "IMP-002",
+      "title": "Boundary detection logic",
+      "description": "Add boundary detection to parser. Find 'Tools' folder with last bookmark URL matching byebyepaywall.com. Split into keepers vs to-categorize.",
+      "acceptanceCriteria": [
+        "detectBoundary(bookmarks) returns { keeperCount, toCategorizeCount, boundaryFound }",
+        "Returns boundaryFound: false if Tools folder or URL not found",
+        "Unit tests cover found/not-found cases",
+        "npm run test passes"
+      ],
+      "priority": 11,
+      "dependsOn": ["IMP-001"],
+      "done": false
+    },
+    {
+      "id": "IMP-003",
+      "title": "Import page dropzone UI",
+      "description": "Create the home page with drag-and-drop file upload. Show instructions for exporting from Chrome. Dark theme, polished dashboard look.",
+      "acceptanceCriteria": [
+        "Dropzone accepts .html files",
+        "Shows hover state when dragging file over",
+        "Shows instructions for Chrome export",
+        "Uses shadcn/ui components",
+        "Dark theme only, sleek dashboard aesthetic",
+        "npm run build passes"
+      ],
+      "priority": 12,
+      "dependsOn": ["SETUP-001"],
+      "done": false
+    },
+    {
+      "id": "IMP-004",
+      "title": "Import summary modal",
+      "description": "After file drop, parse and show summary: X keepers, Y to categorize, Z tweets. Show Start Categorizing button.",
+      "acceptanceCriteria": [
+        "Modal shows after successful parse",
+        "Displays keeper count, to-categorize count, tweet count",
+        "Start Categorizing button navigates to /categorize",
+        "If boundary not found, shows alert (boundary picker comes later)",
+        "npm run build passes"
+      ],
+      "priority": 13,
+      "dependsOn": ["IMP-001", "IMP-002", "IMP-003"],
+      "done": false
+    },
+    {
+      "id": "IMP-005",
+      "title": "Save imported bookmarks to Supabase",
+      "description": "Create API route to save parsed bookmarks to Supabase. Mark keepers vs to-categorize. Extract domain from URL.",
+      "acceptanceCriteria": [
+        "POST /api/bookmarks/import accepts parsed bookmark array",
+        "Saves to bookmarks table with correct is_keeper flag",
+        "Extracts and saves domain field",
+        "Handles duplicate URLs gracefully (upsert)",
+        "Unit tests for domain extraction",
+        "npm run test passes"
+      ],
+      "priority": 14,
+      "dependsOn": ["IMP-004", "SETUP-002"],
+      "done": false
+    },
+    {
+      "id": "CAT-001",
+      "title": "Categorize page layout",
+      "description": "Create /categorize page with layout: progress bar top, bookmark preview center, category picker bottom.",
+      "acceptanceCriteria": [
+        "Page layout matches PRD wireframe",
+        "Progress bar shows X of Y",
+        "Placeholder for bookmark preview",
+        "Placeholder for category picker",
+        "Dark theme, dashboard aesthetic",
+        "npm run build passes"
+      ],
+      "priority": 20,
+      "dependsOn": ["IMP-005"],
+      "done": false
+    },
+    {
+      "id": "CAT-002",
+      "title": "Category picker UI with keyboard shortcuts",
+      "description": "Build category picker showing main categories. Keys 1-9, 0 select categories. Sorted by usage_count.",
+      "acceptanceCriteria": [
+        "Shows top 10 categories with keyboard hints [1]-[9], [0]",
+        "Pressing 1-9, 0 selects that category",
+        "Selected category is highlighted",
+        "[-] key shows 'New category' option",
+        "Categories fetched from Supabase, sorted by usage_count",
+        "npm run build passes"
+      ],
+      "priority": 21,
+      "dependsOn": ["CAT-001", "SETUP-003"],
+      "done": false
+    },
+    {
+      "id": "CAT-003",
+      "title": "Subcategory picker UI",
+      "description": "After selecting main category, show subcategory picker. Same keyboard pattern. State machine transitions.",
+      "acceptanceCriteria": [
+        "After main category selected, UI transitions to subcategories",
+        "Shows subcategories of selected main category",
+        "Keys 1-9, 0 select subcategory",
+        "After subcategory selected, shows chip with 'MainCat > SubCat'",
+        "Enter key allows adding another category pair",
+        "npm run build passes"
+      ],
+      "priority": 22,
+      "dependsOn": ["CAT-002"],
+      "done": false
+    },
+    {
+      "id": "CAT-004",
+      "title": "Bookmark preview for tweets",
+      "description": "Use react-tweet to render tweet embeds. Extract tweet ID from URL. Handle deleted/private tweets.",
+      "acceptanceCriteria": [
+        "getTweetId(url) extracts ID from twitter.com and x.com URLs",
+        "Tweet component renders embed via react-tweet",
+        "Shows fallback for deleted/private tweets",
+        "Unit tests for getTweetId",
+        "npm run test passes"
+      ],
+      "priority": 23,
+      "dependsOn": ["CAT-001"],
+      "done": false
+    },
+    {
+      "id": "CAT-005",
+      "title": "Bookmark preview for non-tweets",
+      "description": "Create link card component for non-tweet bookmarks. Show title, domain, URL. OG image fetch comes later.",
+      "acceptanceCriteria": [
+        "LinkCard component shows title, domain, URL",
+        "Extracts domain from URL",
+        "Styled to match tweet embed height/width roughly",
+        "Dark theme consistent with app",
+        "npm run build passes"
+      ],
+      "priority": 24,
+      "dependsOn": ["CAT-001"],
+      "done": false
+    },
+    {
+      "id": "CAT-006",
+      "title": "Navigate between bookmarks",
+      "description": "Arrow keys navigate between bookmarks. Right arrow saves and moves next (requires category). Left arrow goes back.",
+      "acceptanceCriteria": [
+        "Right arrow (→) moves to next bookmark if category selected",
+        "Right arrow shakes category picker if no category selected",
+        "Left arrow (←) moves to previous bookmark",
+        "Current index tracked in URL param or state",
+        "Preloads next 3 bookmarks in background",
+        "npm run build passes"
+      ],
+      "priority": 25,
+      "dependsOn": ["CAT-003", "CAT-004", "CAT-005"],
+      "done": false
+    },
+    {
+      "id": "CAT-007",
+      "title": "Skip bookmark functionality",
+      "description": "Delete/Backspace marks bookmark as skipped. Screen flashes red briefly. Moves to next.",
+      "acceptanceCriteria": [
+        "Delete or Backspace key marks is_skipped=true",
+        "Screen/card flashes red (~200ms)",
+        "Automatically moves to next bookmark",
+        "Skipped bookmark saved to Supabase",
+        "npm run build passes"
+      ],
+      "priority": 26,
+      "dependsOn": ["CAT-006"],
+      "done": false
+    },
+    {
+      "id": "CAT-008",
+      "title": "Save categorization to Supabase",
+      "description": "When navigating to next bookmark, save category selections to bookmark_categories table.",
+      "acceptanceCriteria": [
+        "API route saves bookmark_categories junction records",
+        "Sets is_categorized=true on bookmark",
+        "Increments usage_count on selected categories",
+        "Handles multiple category pairs per bookmark",
+        "npm run test passes"
+      ],
+      "priority": 27,
+      "dependsOn": ["CAT-006"],
+      "done": false
+    },
+    {
+      "id": "CAT-009",
+      "title": "Notes field for bookmarks",
+      "description": "N key opens notes textarea. Escape or blur closes. Notes auto-save.",
+      "acceptanceCriteria": [
+        "N key toggles notes field visibility",
+        "Notes textarea appears below preview",
+        "Auto-saves on blur (debounced)",
+        "Escape closes notes field",
+        "Saves to bookmarks.notes column",
+        "npm run build passes"
+      ],
+      "priority": 28,
+      "dependsOn": ["CAT-006"],
+      "done": false
+    },
+    {
+      "id": "CAT-010",
+      "title": "New category modal",
+      "description": "Minus key opens modal to create new category. In main view creates main cat, in sub view creates subcat.",
+      "acceptanceCriteria": [
+        "[-] key opens modal",
+        "In main category view: creates new main category",
+        "In subcategory view: creates subcategory under current main",
+        "New category immediately selectable after creation",
+        "Saves to Supabase categories table",
+        "npm run build passes"
+      ],
+      "priority": 29,
+      "dependsOn": ["CAT-003"],
+      "done": false
+    },
+    {
+      "id": "CAT-011",
+      "title": "Progress persistence",
+      "description": "Save current position to settings table. Resume from saved position on return.",
+      "acceptanceCriteria": [
+        "Current index saved to settings after each navigation",
+        "On page load, resumes from saved position",
+        "Key: categorize_position, value: { index: N }",
+        "Completion screen when all bookmarks done",
+        "npm run build passes"
+      ],
+      "priority": 30,
+      "dependsOn": ["CAT-008"],
+      "done": false
+    },
+    {
+      "id": "E2E-001",
+      "title": "E2E test for import flow",
+      "description": "Playwright test that drops a sample bookmarks file and verifies import summary appears.",
+      "acceptanceCriteria": [
+        "Test file in e2e/import.spec.ts",
+        "Creates sample bookmarks HTML fixture",
+        "Drops file on dropzone",
+        "Verifies import summary modal appears",
+        "npm run test:e2e passes"
+      ],
+      "priority": 31,
+      "dependsOn": ["IMP-005"],
+      "done": false
+    },
+    {
+      "id": "E2E-002",
+      "title": "E2E test for categorization flow",
+      "description": "Playwright test that categorizes one bookmark using keyboard shortcuts.",
+      "acceptanceCriteria": [
+        "Test file in e2e/categorize.spec.ts",
+        "Seeds database with test bookmark and categories",
+        "Presses number keys to select category/subcategory",
+        "Presses right arrow to save",
+        "Verifies bookmark is categorized in DB",
+        "npm run test:e2e passes"
+      ],
+      "priority": 32,
+      "dependsOn": ["CAT-008"],
+      "done": false
+    },
+    {
+      "id": "BRW-001",
+      "title": "Browse page layout",
+      "description": "Create /browse page with sidebar for categories, main area for bookmark grid.",
+      "acceptanceCriteria": [
+        "Left sidebar (collapsible) with category tree",
+        "Main area with search bar and filter chips",
+        "Bookmark grid placeholder",
+        "Dark theme, dashboard aesthetic",
+        "npm run build passes"
+      ],
+      "priority": 40,
+      "dependsOn": ["CAT-011"],
+      "done": false
+    },
+    {
+      "id": "BRW-002",
+      "title": "Category tree sidebar",
+      "description": "Sidebar shows expandable category tree. Click category filters results.",
+      "acceptanceCriteria": [
+        "Main categories listed, expandable",
+        "Click main category expands subcategories",
+        "Click filters bookmarks to that category",
+        "Shows bookmark count per category",
+        "'All Bookmarks' option at top",
+        "npm run build passes"
+      ],
+      "priority": 41,
+      "dependsOn": ["BRW-001"],
+      "done": false
+    },
+    {
+      "id": "BRW-003",
+      "title": "Bookmark grid display",
+      "description": "Display bookmarks in grid. Tweet embeds for tweets, link cards for others.",
+      "acceptanceCriteria": [
+        "Grid layout with responsive columns",
+        "Uses tweet preview for is_tweet=true",
+        "Uses link card for non-tweets",
+        "Pagination or infinite scroll",
+        "npm run build passes"
+      ],
+      "priority": 42,
+      "dependsOn": ["BRW-002", "CAT-004", "CAT-005"],
+      "done": false
+    },
+    {
+      "id": "BRW-004",
+      "title": "Search functionality",
+      "description": "Search bar with full-text search on title, content, notes.",
+      "acceptanceCriteria": [
+        "Search input in header",
+        "Queries bookmarks.fts column",
+        "Debounced (300ms)",
+        "Results update as you type",
+        "Unit tests for search query building",
+        "npm run test passes"
+      ],
+      "priority": 43,
+      "dependsOn": ["BRW-003"],
+      "done": false
+    },
+    {
+      "id": "BRW-005",
+      "title": "Filter chips and dropdowns",
+      "description": "Add filter dropdowns: Sort, Type (tweet/non-tweet), Domain, Has notes.",
+      "acceptanceCriteria": [
+        "Sort dropdown: Newest, Oldest, Recently viewed",
+        "Type toggle: Tweet, Non-tweet, All",
+        "Domain multi-select from unique domains",
+        "Has notes toggle",
+        "Active filters shown as removable chips",
+        "npm run build passes"
+      ],
+      "priority": 44,
+      "dependsOn": ["BRW-004"],
+      "done": false
+    },
+    {
+      "id": "EXP-001",
+      "title": "Export keepers to Chrome format",
+      "description": "Generate Chrome bookmark HTML from keeper bookmarks. Preserve folder structure.",
+      "acceptanceCriteria": [
+        "exportToChrome(keepers) returns valid Chrome HTML",
+        "Preserves original folder structure from chrome_folder_path",
+        "Includes ADD_DATE timestamps",
+        "Unit tests verify output format",
+        "npm run test passes"
+      ],
+      "priority": 50,
+      "dependsOn": ["IMP-005"],
+      "done": false
+    },
+    {
+      "id": "EXP-002",
+      "title": "Export download button",
+      "description": "Add export button in header/settings. Downloads generated HTML file.",
+      "acceptanceCriteria": [
+        "Button triggers export generation",
+        "File downloads as bookmarks.html",
+        "Only includes keeper bookmarks",
+        "npm run build passes"
+      ],
+      "priority": 51,
+      "dependsOn": ["EXP-001", "BRW-001"],
+      "done": false
+    },
+    {
+      "id": "MGT-001",
+      "title": "Category management page",
+      "description": "Create /categories page to add, edit, delete, reorder categories.",
+      "acceptanceCriteria": [
+        "Lists all main categories with subcategories",
+        "Edit button opens inline edit",
+        "Delete button with confirmation",
+        "Add new category/subcategory buttons",
+        "npm run build passes"
+      ],
+      "priority": 60,
+      "dependsOn": ["BRW-001"],
+      "done": false
+    },
+    {
+      "id": "MGT-002",
+      "title": "Drag to reorder categories",
+      "description": "Implement drag and drop to reorder main categories. Updates sort_order.",
+      "acceptanceCriteria": [
+        "Drag handle on each category",
+        "Reordering updates sort_order in Supabase",
+        "Visual feedback during drag",
+        "npm run build passes"
+      ],
+      "priority": 61,
+      "dependsOn": ["MGT-001"],
+      "done": false
+    },
+    {
+      "id": "OG-001",
+      "title": "Open Graph metadata fetcher",
+      "description": "API route to fetch OG metadata for non-tweet URLs. Cache in bookmarks table.",
+      "acceptanceCriteria": [
+        "POST /api/og fetches og:title, og:description, og:image",
+        "Caches result in bookmarks.og_image column",
+        "Handles fetch failures gracefully",
+        "Unit tests for response parsing",
+        "npm run test passes"
+      ],
+      "priority": 70,
+      "dependsOn": ["IMP-005"],
+      "done": false
+    },
+    {
+      "id": "OG-002",
+      "title": "Display OG images in link cards",
+      "description": "Update LinkCard to show OG image if available.",
+      "acceptanceCriteria": [
+        "LinkCard shows og_image if present",
+        "Fallback to domain/title only if no image",
+        "Image loads lazily",
+        "npm run build passes"
+      ],
+      "priority": 71,
+      "dependsOn": ["OG-001", "CAT-005"],
+      "done": false
+    }
+  ]
+}

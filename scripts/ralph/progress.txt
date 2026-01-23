@@ -1,0 +1,23 @@
+# Ralph Progress Log
+
+Started: 2026-01-22
+
+## Codebase Patterns
+
+(Add reusable patterns here as you discover them)
+
+- Supabase client: Use `@/lib/supabase` for all database queries
+- Components: Use shadcn/ui from `@/components/ui/`
+- Styling: Tailwind + `cn()` from `@/lib/utils`
+- Path alias: `@/*` maps to `./src/*`
+
+## Key Files
+
+- `src/lib/supabase.ts` - Supabase client
+- `supabase/migrations/` - Database migrations
+- `PRD.md` - Full product requirements
+- `CLAUDE.md` - Coding conventions
+
+---
+
+(Iteration logs will be appended below)
