@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Mock the child components
 vi.mock('./tweet-card', () => ({
@@ -345,6 +345,176 @@ describe('BrowseContent', () => {
       // Should reset to initial 12 (or all 15 if fewer than 12 in category)
       // Since all 15 are in UI category, should show 12 again
       expect(within(grid).getAllByRole('article')).toHaveLength(12)
+    })
+  })
+
+  // BRW-004: Search functionality tests
+  describe('Search functionality', () => {
+    it('renders search input', () => {
+      render(<BrowseContent categories={mockCategories} bookmarks={mockBookmarks} bookmarkCategories={mockBookmarkCategories} />)
+
+      const searchInput = screen.getByPlaceholderText(/search/i)
+      expect(searchInput).toBeInTheDocument()
+    })
+
+    it('search input accepts text', async () => {
+      const user = userEvent.setup()
+      render(<BrowseContent categories={mockCategories} bookmarks={mockBookmarks} bookmarkCategories={mockBookmarkCategories} />)
+
+      const searchInput = screen.getByPlaceholderText(/search/i)
+      await user.type(searchInput, 'react')
+
+      expect(searchInput).toHaveValue('react')
+    })
+
+    it('fetches search results from API after debounce', async () => {
+      const mockSearchResults = [
+        { id: 'sr1', url: 'https://example.com/react', title: 'React Tutorial', is_tweet: false, is_categorized: true, domain: 'example.com', notes: null, og_image: null, add_date: null },
+      ]
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: mockSearchResults, error: null }),
+      })
+      global.fetch = mockFetch
+
+      const user = userEvent.setup()
+      render(<BrowseContent categories={mockCategories} bookmarks={mockBookmarks} bookmarkCategories={mockBookmarkCategories} />)
+
+      const searchInput = screen.getByPlaceholderText(/search/i)
+      await user.type(searchInput, 'react')
+
+      // Wait for debounce and fetch
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/bookmarks/search?q=react')
+      }, { timeout: 500 })
+    })
+
+    it('shows search results when query is entered', async () => {
+      const mockSearchResults = [
+        { id: 'sr1', url: 'https://example.com/react', title: 'React Tutorial', is_tweet: false, is_categorized: true, domain: 'example.com', notes: null, og_image: null, add_date: null },
+      ]
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: mockSearchResults, error: null }),
+      })
+      global.fetch = mockFetch
+
+      const user = userEvent.setup()
+      render(<BrowseContent categories={mockCategories} bookmarks={mockBookmarks} bookmarkCategories={mockBookmarkCategories} />)
+
+      const searchInput = screen.getByPlaceholderText(/search/i)
+      await user.type(searchInput, 'react')
+
+      // Wait for search results to be displayed
+      await waitFor(() => {
+        const grid = screen.getByTestId('bookmark-grid')
+        expect(within(grid).getByText('LinkCard: React Tutorial')).toBeInTheDocument()
+      }, { timeout: 500 })
+    })
+
+    it('clears search results when query is cleared', async () => {
+      const mockSearchResults = [
+        { id: 'sr1', url: 'https://example.com/react', title: 'React Tutorial', is_tweet: false, is_categorized: true, domain: 'example.com', notes: null, og_image: null, add_date: null },
+      ]
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: mockSearchResults, error: null }),
+      })
+      global.fetch = mockFetch
+
+      const user = userEvent.setup()
+      render(<BrowseContent categories={mockCategories} bookmarks={mockBookmarks} bookmarkCategories={mockBookmarkCategories} />)
+
+      const searchInput = screen.getByPlaceholderText(/search/i)
+
+      // Type a query
+      await user.type(searchInput, 'react')
+
+      // Wait for search results
+      await waitFor(() => {
+        const grid = screen.getByTestId('bookmark-grid')
+        expect(within(grid).getByText('LinkCard: React Tutorial')).toBeInTheDocument()
+      }, { timeout: 500 })
+
+      // Clear the search input
+      await user.clear(searchInput)
+
+      // Should show all original bookmarks again
+      await waitFor(() => {
+        const grid = screen.getByTestId('bookmark-grid')
+        expect(within(grid).getAllByRole('article')).toHaveLength(3)
+      }, { timeout: 500 })
+    })
+
+    it('shows loading spinner while searching', async () => {
+      let resolveJsonPromise: (value: { data: unknown[]; error: null }) => void
+      const jsonPromise = new Promise<{ data: unknown[]; error: null }>(resolve => {
+        resolveJsonPromise = resolve
+      })
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => jsonPromise,
+      })
+      global.fetch = mockFetch
+
+      const user = userEvent.setup()
+      render(<BrowseContent categories={mockCategories} bookmarks={mockBookmarks} bookmarkCategories={mockBookmarkCategories} />)
+
+      const searchInput = screen.getByPlaceholderText(/search/i)
+      await user.type(searchInput, 'react')
+
+      // Should show loading indicator after debounce triggers fetch
+      await waitFor(() => {
+        expect(screen.getByTestId('search-loading')).toBeInTheDocument()
+      }, { timeout: 500 })
+
+      // Resolve the promise
+      await act(async () => {
+        resolveJsonPromise!({ data: [], error: null })
+      })
+
+      // Loading indicator should be gone
+      await waitFor(() => {
+        expect(screen.queryByTestId('search-loading')).not.toBeInTheDocument()
+      })
+    })
+
+    it('resets pagination when search query changes', async () => {
+      const manyBookmarks = Array.from({ length: 15 }, (_, i) => ({
+        id: `bm-${i}`,
+        url: `https://example.com/${i}`,
+        title: `Bookmark ${i}`,
+        is_tweet: false,
+        is_categorized: true,
+        domain: 'example.com',
+        notes: null,
+        og_image: null,
+        add_date: null,
+      }))
+
+      const user = userEvent.setup()
+      render(<BrowseContent categories={[]} bookmarks={manyBookmarks} bookmarkCategories={[]} />)
+
+      // Click load more to show all
+      await user.click(screen.getByTestId('load-more-button'))
+
+      const grid = screen.getByTestId('bookmark-grid')
+      expect(within(grid).getAllByRole('article')).toHaveLength(15)
+
+      // Setup mock for search
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: manyBookmarks.slice(0, 5), error: null }),
+      })
+      global.fetch = mockFetch
+
+      const searchInput = screen.getByPlaceholderText(/search/i)
+      await user.type(searchInput, 'test')
+
+      // After search, should show search results (5 items) with reset pagination
+      await waitFor(() => {
+        expect(within(grid).getAllByRole('article')).toHaveLength(5)
+      }, { timeout: 500 })
     })
   })
 })

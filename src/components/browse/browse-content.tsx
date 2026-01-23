@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { Search, ChevronRight, ChevronDown, PanelLeftClose, PanelLeft, Bookmark, Filter, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TweetCard } from './tweet-card'
 import { BrowseLinkCard } from './browse-link-card'
+import { useDebounce } from '@/hooks/use-debounce'
 
 const ITEMS_PER_PAGE = 12
+const SEARCH_DEBOUNCE_MS = 300
 
 interface Category {
   id: string
@@ -46,6 +48,43 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE)
+  const [searchResults, setSearchResults] = useState<BookmarkData[] | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
+
+  // Debounce search query
+  const debouncedSearchQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS)
+
+  // Fetch search results when debounced query changes
+  const performSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults(null)
+      setIsSearching(false)
+      return
+    }
+
+    setIsSearching(true)
+    try {
+      const response = await fetch(`/api/bookmarks/search?q=${encodeURIComponent(query)}`)
+      if (response.ok) {
+        const { data } = await response.json()
+        setSearchResults(data)
+      }
+    } catch {
+      // Handle error silently, show original bookmarks
+      setSearchResults(null)
+    } finally {
+      setIsSearching(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    performSearch(debouncedSearchQuery)
+  }, [debouncedSearchQuery, performSearch])
+
+  // Reset pagination when search query changes
+  useEffect(() => {
+    setDisplayCount(ITEMS_PER_PAGE)
+  }, [debouncedSearchQuery])
 
   // Separate main categories from subcategories
   const mainCategories = useMemo(
@@ -90,8 +129,14 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
     }
   }
 
-  // Filter bookmarks based on selected category
+  // Filter bookmarks based on selected category and search
   const filteredBookmarks = useMemo(() => {
+    // If we have search results, use those (ignoring category filter for search)
+    if (searchResults !== null) {
+      return searchResults
+    }
+
+    // No search, apply category filter
     if (selectedCategoryId === null) {
       return bookmarks
     }
@@ -118,7 +163,7 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
       const bookmarkIds = categoryToBookmarks.get(selectedCategoryId) || new Set()
       return bookmarks.filter(b => bookmarkIds.has(b.id))
     }
-  }, [selectedCategoryId, bookmarks, categories, categoryToBookmarks])
+  }, [selectedCategoryId, bookmarks, categories, categoryToBookmarks, searchResults])
 
   // Paginated bookmarks for display
   const displayedBookmarks = useMemo(
@@ -300,8 +345,13 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
               placeholder="Search bookmarks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-colors"
+              className="w-full pl-10 pr-10 py-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-colors"
             />
+            {isSearching && (
+              <div data-testid="search-loading" className="absolute right-3 top-1/2 -translate-y-1/2">
+                <Loader2 className="w-4 h-4 text-zinc-500 animate-spin" />
+              </div>
+            )}
           </div>
 
           {/* Filter Chips */}

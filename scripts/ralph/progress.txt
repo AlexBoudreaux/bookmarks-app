@@ -741,3 +741,35 @@ Started: 2026-01-22
 - When mocking components in tests, update assertions to match mocked output
 
 ---
+
+## 2026-01-23 - BRW-004
+- Implemented search functionality with full-text search on title, content, and notes
+- Created buildTsQuery() helper to convert search query to Postgres tsquery format (prefix matching with :*)
+- Created searchBookmarks() function using Supabase textSearch on fts column
+- Created GET /api/bookmarks/search route with query parameter
+- Created useDebounce hook for 300ms debounce delay
+- Updated BrowseContent to call search API with debounced query
+- Search results replace category-filtered results when query is active
+- Loading spinner appears in search bar while fetching
+- Pagination resets when search query changes
+- All 244 tests passing, build passes with no errors
+
+**Files changed:**
+- src/lib/search-bookmarks.ts (created)
+- src/lib/search-bookmarks.test.ts (created)
+- src/app/api/bookmarks/search/route.ts (created)
+- src/app/api/bookmarks/search/route.test.ts (created)
+- src/hooks/use-debounce.ts (created)
+- src/hooks/use-debounce.test.ts (created)
+- src/components/browse/browse-content.tsx (updated with search integration)
+- src/components/browse/browse-content.test.tsx (added 7 search tests)
+
+**Learnings:**
+- Postgres textSearch with tsquery format: `word:*` for prefix matching, `&` for AND between words
+- Supabase .textSearch('fts', query) method for FTS queries
+- useDebounce hook pattern: useState for debounced value, useEffect with setTimeout
+- Search results state (null vs array) distinguishes between no search and empty results
+- Testing async debounced behavior: use waitFor with timeout instead of fake timers for simpler tests
+- Separate searchResults state from filteredBookmarks to cleanly override category filtering
+
+---
