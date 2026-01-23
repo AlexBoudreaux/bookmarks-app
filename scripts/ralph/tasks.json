@@ -438,7 +438,7 @@
       ],
       "priority": 60,
       "dependsOn": ["BRW-001"],
-      "done": false
+      "done": true
     },
     {
       "id": "MGT-002",

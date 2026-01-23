@@ -852,3 +852,32 @@ Started: 2026-01-22
 - Use Response() directly for non-JSON responses instead of NextResponse.json()
 
 ---
+
+## 2026-01-23 - MGT-001
+- Implemented category management page at /categories
+- Created CategoriesContent client component with full CRUD functionality
+- Features: list main categories with subcategories, inline edit, delete with confirmation, add category/subcategory
+- Created PATCH and DELETE API routes at /api/categories/[id]
+- Main categories show aggregated bookmark count from all subcategories
+- Subcategories displayed as chips under each main category
+- Delete confirmation modal shows affected bookmark count
+- AddCategoryButton client component triggers modal via custom event
+- All 312 tests passing, build succeeds
+
+**Files changed:**
+- src/app/categories/page.tsx (created)
+- src/app/categories/page.test.tsx (created)
+- src/components/categories/categories-content.tsx (created)
+- src/components/categories/categories-content.test.tsx (created)
+- src/components/categories/add-category-button.tsx (created)
+- src/app/api/categories/[id]/route.ts (created)
+- src/app/api/categories/[id]/route.test.ts (created)
+
+**Learnings:**
+- Server components fetch data, client components handle interactive state (editing, modals, etc.)
+- Custom events (window.dispatchEvent) useful for triggering client component state from external buttons
+- Bookmark counts for main categories need to aggregate all subcategory counts
+- PATCH routes use async params in Next.js 16: `params: Promise<{ id: string }>`
+- Delete cascades: delete subcategories first, then bookmark_categories junction records, then the category itself
+
+---
