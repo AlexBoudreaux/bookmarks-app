@@ -28,28 +28,53 @@ vi.mock('@/components/categorize/categorize-wrapper', () => ({
 // Track saved position value for tests
 let mockSavedPosition: { index: number } | null = null
 
+// Track bookmark pagination calls to simulate pagination behavior
+let bookmarkRangeCallCount = 0
+
 // Mock Supabase - needs to return a chainable builder
 const createMockBuilder = (tableName: string) => {
+  const mockBookmarks = [
+    { id: '1', url: 'https://twitter.com/test/status/123', title: 'Test Tweet', is_tweet: true, is_categorized: false, is_keeper: false, is_skipped: false },
+    { id: '2', url: 'https://github.com/example/repo', title: 'GitHub Repo', is_tweet: false, is_categorized: false, is_keeper: false, is_skipped: false },
+  ]
+
+  const mockCategories = [
+    { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
+    { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
+    { id: '1a', name: 'Components', parent_id: '1', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
+  ]
+
   const builder: any = {
     select: vi.fn(() => builder),
     eq: vi.fn(() => builder),
     is: vi.fn(() => builder),
+    not: vi.fn(() => builder),
     single: vi.fn(() => ({
       data: tableName === 'settings' && mockSavedPosition ? { value: mockSavedPosition } : null,
       error: tableName === 'settings' && !mockSavedPosition ? { code: 'PGRST116' } : null,
     })),
-    order: vi.fn(() => ({
-      data: tableName === 'categories' ? [
-        { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
-        { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
-        { id: '1a', name: 'Components', parent_id: '1', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
-      ] : tableName === 'bookmarks' ? [
-        { id: '1', url: 'https://twitter.com/test/status/123', title: 'Test Tweet', is_tweet: true, is_categorized: false, is_keeper: false, is_skipped: false },
-        { id: '2', url: 'https://github.com/example/repo', title: 'GitHub Repo', is_tweet: false, is_categorized: false, is_keeper: false, is_skipped: false },
-      ] : [],
-      error: null,
-    })),
+    order: vi.fn(() => builder),
+    range: vi.fn(() => {
+      // For bookmarks, return data on first call, empty on second (to stop pagination)
+      if (tableName === 'bookmarks') {
+        bookmarkRangeCallCount++
+        return {
+          data: bookmarkRangeCallCount === 1 ? mockBookmarks : [],
+          error: null,
+        }
+      }
+      return { data: [], error: null }
+    }),
   }
+
+  // For categories table, order() should return directly (no range)
+  if (tableName === 'categories') {
+    builder.order = vi.fn(() => ({
+      data: mockCategories,
+      error: null,
+    }))
+  }
+
   return builder
 }
 
@@ -76,13 +101,14 @@ describe('CategorizePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSavedPosition = null // Reset saved position for each test
+    bookmarkRangeCallCount = 0 // Reset pagination counter
   })
 
   it('renders page header', async () => {
     render(await CategorizePage())
 
     expect(screen.getByText('← Back')).toBeInTheDocument()
-    expect(screen.getByText('Categorize Bookmarks')).toBeInTheDocument()
+    expect(screen.getByText('Categorize')).toBeInTheDocument()
   })
 
   it('passes bookmarks to CategorizeWrapper', async () => {

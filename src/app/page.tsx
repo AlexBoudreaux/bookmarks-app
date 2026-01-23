@@ -3,6 +3,9 @@ import { ArrowRight } from 'lucide-react';
 import { Dropzone } from '@/components/import/dropzone';
 import { supabase } from '@/lib/supabase';
 
+// Disable Next.js caching so bookmark count is always fresh
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   const { count } = await supabase
     .from('bookmarks')

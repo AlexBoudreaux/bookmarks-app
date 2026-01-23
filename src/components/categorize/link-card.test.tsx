@@ -94,7 +94,7 @@ describe('LinkCard', () => {
     expect(svg).toBeInTheDocument()
   })
 
-  it('has minimum height matching design spec', () => {
+  it('uses flex layout for content centering', () => {
     const { container } = render(
       <LinkCard
         title="Example Article"
@@ -103,7 +103,7 @@ describe('LinkCard', () => {
     )
 
     const wrapper = container.firstChild as HTMLElement
-    expect(wrapper).toHaveClass('min-h-[500px]')
+    expect(wrapper).toHaveClass('flex', 'flex-col', 'items-center', 'justify-center')
   })
 
   it('handles empty title gracefully', () => {

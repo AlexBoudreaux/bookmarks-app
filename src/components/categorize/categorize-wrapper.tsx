@@ -212,7 +212,7 @@ export function CategorizeWrapper({
   }
 
   return (
-    <div className="relative">
+    <div className="relative h-full flex flex-col">
       {/* Skip flash overlay */}
       {isSkipFlashing && (
         <div
@@ -222,7 +222,7 @@ export function CategorizeWrapper({
       )}
 
       {/* Progress indicator */}
-      <div className="flex items-center justify-between mb-6 text-sm">
+      <div className="flex items-center justify-between mb-4 text-sm">
         <span className="text-zinc-600">Progress</span>
         <div className="font-mono">
           <span className="text-zinc-100">{currentIndex + 1}</span>
@@ -231,48 +231,53 @@ export function CategorizeWrapper({
         </div>
       </div>
 
-      {/* Bookmark preview */}
-      <div className="mb-8">
-        <div className="relative group">
-          {/* Decorative background glow */}
-          <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 rounded-3xl blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+      {/* Side-by-side layout: Preview (left) + Categories (right) */}
+      <div className="flex gap-6 h-full min-h-0">
+        {/* Left: Bookmark preview - contained within viewport */}
+        <div className="w-[55%] flex-shrink-0 flex flex-col min-h-0">
+          <div className="relative group flex-1 min-h-0">
+            {/* Decorative background glow */}
+            <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 rounded-3xl blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
-          <div className={`relative bg-zinc-900/50 backdrop-blur-sm border rounded-2xl p-12 transition-colors ${isSkipFlashing ? 'border-red-500/50 bg-red-500/5' : 'border-zinc-800/50'}`}>
-            {currentBookmark && currentBookmark.is_tweet ? (
-              <TweetPreview url={currentBookmark.url} />
-            ) : currentBookmark ? (
-              <LinkCard title={currentBookmark.title || ''} url={currentBookmark.url} ogImage={currentBookmark.og_image} />
-            ) : null}
+            <div className={`relative bg-zinc-900/50 backdrop-blur-sm border rounded-2xl p-6 transition-colors h-full overflow-hidden ${isSkipFlashing ? 'border-red-500/50 bg-red-500/5' : 'border-zinc-800/50'}`}>
+              <div className="h-full overflow-y-auto">
+                {currentBookmark && currentBookmark.is_tweet ? (
+                  <TweetPreview url={currentBookmark.url} />
+                ) : currentBookmark ? (
+                  <LinkCard title={currentBookmark.title || ''} url={currentBookmark.url} ogImage={currentBookmark.og_image} />
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Notes hint */}
-        <div className="flex items-center justify-center mt-3 text-xs text-zinc-500">
-          <span>Press</span>
-          <kbd className="mx-1.5 px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400">N</kbd>
-          <span>to add notes</span>
-        </div>
-
-        {/* Notes field */}
-        {currentBookmark && (
-          <NotesField
-            bookmarkId={currentBookmark.id}
-            initialNotes={currentBookmark.notes}
-            isVisible={isNotesVisible}
-            onClose={() => setIsNotesVisible(false)}
+        {/* Right: Category picker + Notes */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <CategoryPicker
+            categories={categories}
+            onSelect={handleSelectCategory}
+            selectedPairs={selectedPairs}
+            onSelectedPairsChange={handleSelectedPairsChange}
+            isShaking={isShaking}
           />
-        )}
-      </div>
 
-      {/* Category picker */}
-      <div className="relative">
-        <CategoryPicker
-          categories={categories}
-          onSelect={handleSelectCategory}
-          selectedPairs={selectedPairs}
-          onSelectedPairsChange={handleSelectedPairsChange}
-          isShaking={isShaking}
-        />
+          {/* Notes hint */}
+          <div className="flex items-center justify-center mt-2 text-xs text-zinc-500">
+            <span>Press</span>
+            <kbd className="mx-1.5 px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400">N</kbd>
+            <span>to add notes</span>
+          </div>
+
+          {/* Notes field */}
+          {currentBookmark && (
+            <NotesField
+              bookmarkId={currentBookmark.id}
+              initialNotes={currentBookmark.notes}
+              isVisible={isNotesVisible}
+              onClose={() => setIsNotesVisible(false)}
+            />
+          )}
+        </div>
       </div>
     </div>
   )

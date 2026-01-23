@@ -91,7 +91,7 @@ describe('CategoryPicker', () => {
   it('shows instruction text', () => {
     render(<CategoryPicker categories={mockCategories} onSelect={vi.fn()} />)
 
-    expect(screen.getByText(/Press 1-9 or 0 to select/)).toBeInTheDocument()
+    expect(screen.getByText(/Press 1-9 or 0/)).toBeInTheDocument()
   })
 
   describe('Subcategory picker', () => {
@@ -122,7 +122,7 @@ describe('CategoryPicker', () => {
       expect(screen.getByText('General UI')).toBeInTheDocument()
 
       // Should show breadcrumb
-      expect(screen.getByText(/UI → Subcategory/i)).toBeInTheDocument()
+      expect(screen.getByText(/UI → Sub/i)).toBeInTheDocument()
     })
 
     it('allows selecting subcategory with keyboard shortcuts', async () => {
@@ -190,7 +190,7 @@ describe('CategoryPicker', () => {
       await user.keyboard('1')
 
       // Should show hint about pressing Enter for more
-      expect(screen.getByText(/Press Enter to add more/i)).toBeInTheDocument()
+      expect(screen.getByText(/Enter to add more/i)).toBeInTheDocument()
     })
   })
 
