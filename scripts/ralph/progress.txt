@@ -57,3 +57,22 @@ Started: 2026-01-22
 - Types include the `embedding` vector column for future semantic search
 
 ---
+
+## 2026-01-22 - SETUP-003
+- Created migration `002_seed_starter_categories.sql` to populate starter categories
+- Seeded 9 main categories with 42 subcategories (51 total)
+- Categories match PRD specification exactly
+- Migration successfully applied via `supabase db push`
+- Verified all categories in remote database
+
+**Files changed:**
+- `supabase/migrations/002_seed_starter_categories.sql` (created)
+- `scripts/verify-categories.ts` (created for verification)
+
+**Learnings:**
+- Migration pattern: Insert main categories first, then use SELECT subquery to get parent_id for subcategories
+- Each INSERT for subcategories uses `SELECT id FROM categories WHERE name = 'ParentName' AND parent_id IS NULL` to find parent
+- Verification script uses manual .env.local parsing since dotenv is not installed
+- All 51 categories successfully inserted with correct hierarchy (9 main + 42 sub)
+
+---
