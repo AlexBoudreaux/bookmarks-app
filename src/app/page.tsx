@@ -30,12 +30,12 @@ export default async function Home() {
 
       {/* Main content */}
       <main className="flex min-h-screen items-center justify-center px-6 pt-16">
-        <div className="w-full max-w-3xl py-16">
-          <div className="mb-12 text-center">
-            <h2 className="mb-3 text-4xl font-bold tracking-tight text-foreground">
+        <div className="w-full max-w-2xl py-16">
+          <div className="mb-10 text-center">
+            <h2 className="mb-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               Import Your Bookmarks
             </h2>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-base text-muted-foreground sm:text-lg">
               Drop your Chrome bookmarks file to get started
             </p>
           </div>

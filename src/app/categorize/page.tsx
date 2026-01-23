@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { CategorizeWrapper } from '@/components/categorize/categorize-wrapper'
 
@@ -40,12 +41,17 @@ export default async function CategorizePage() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-800/50">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between mb-3">
-            <button className="text-zinc-400 hover:text-zinc-100 transition-colors text-sm font-medium">
+            <Link
+              href="/"
+              className="text-zinc-400 hover:text-zinc-100 transition-colors text-sm font-medium"
+            >
               ← Back
-            </button>
-            <div className="text-sm font-mono text-zinc-400">
+            </Link>
+            <h1 className="text-sm font-medium text-zinc-200">
               Categorize Bookmarks
-            </div>
+            </h1>
+            {/* Spacer for centering */}
+            <div className="w-12" />
           </div>
 
           {/* Progress Bar - now managed by CategorizeWrapper */}

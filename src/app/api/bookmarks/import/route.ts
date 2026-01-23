@@ -27,31 +27,34 @@ export async function POST(request: Request) {
     }
 
     // Transform parsed bookmarks to database format
-    const bookmarksToInsert: BookmarkInsert[] = bookmarks.map(
-      (bookmark: ImportBookmark) => {
-        // Handle both Date objects and ISO strings (from JSON serialization)
-        let addDateIso: string | null = null
-        if (bookmark.addDate) {
-          if (typeof bookmark.addDate === 'string') {
-            addDateIso = bookmark.addDate
-          } else if (bookmark.addDate instanceof Date) {
-            addDateIso = bookmark.addDate.toISOString()
-          }
-        }
+    const bookmarksMap = new Map<string, BookmarkInsert>()
 
-        return {
-          url: bookmark.url,
-          title: bookmark.title,
-          add_date: addDateIso,
-          chrome_folder_path: bookmark.folderPath,
-          domain: extractDomain(bookmark.url),
-          is_tweet: bookmark.isTweet,
-          is_keeper: bookmark.isKeeper,
-          is_categorized: false,
-          is_skipped: false,
+    for (const bookmark of bookmarks as ImportBookmark[]) {
+      // Handle both Date objects and ISO strings (from JSON serialization)
+      let addDateIso: string | null = null
+      if (bookmark.addDate) {
+        if (typeof bookmark.addDate === 'string') {
+          addDateIso = bookmark.addDate
+        } else if (bookmark.addDate instanceof Date) {
+          addDateIso = bookmark.addDate.toISOString()
         }
       }
-    )
+
+      // Deduplicate by URL (keep the last occurrence)
+      bookmarksMap.set(bookmark.url, {
+        url: bookmark.url,
+        title: bookmark.title,
+        add_date: addDateIso,
+        chrome_folder_path: bookmark.folderPath,
+        domain: extractDomain(bookmark.url),
+        is_tweet: bookmark.isTweet,
+        is_keeper: bookmark.isKeeper,
+        is_categorized: false,
+        is_skipped: false,
+      })
+    }
+
+    const bookmarksToInsert = Array.from(bookmarksMap.values())
 
     // Upsert bookmarks (insert or update on conflict)
     const { data, error } = await supabase

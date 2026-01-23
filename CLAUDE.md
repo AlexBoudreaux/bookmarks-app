@@ -79,6 +79,36 @@ Four tables: `bookmarks`, `categories` (hierarchical), `settings` (key-value), `
 - Icons: lucide-react
 - Styling: Tailwind + `cn()` utility from `@/lib/utils`
 
+## UI Design Principles
+
+This is a **production-quality SaaS product**, not a beta side project. Every screen should feel intentional, polished, and professional.
+
+### Visual Hierarchy
+- Use subtle gradients and shadows to create depth and guide attention
+- Interactive elements need clear affordances (hover states, focus rings, transitions)
+- Keyboard shortcuts should have visible hints that feel integrated, not bolted on
+- Fixed heights on repeated elements (buttons, cards, list items) for visual consistency
+
+### Dark Theme Standards
+- Background layers: zinc-950 → zinc-900 → zinc-800 for depth
+- Text: zinc-100 for primary, zinc-400 for secondary, zinc-600 for hints
+- Accent: emerald/teal gradient for primary actions and highlights
+- Borders: zinc-800/50 or zinc-700/50 for subtle separation
+
+### Polish Checklist
+- Text truncation with ellipsis on overflow (never break layouts)
+- Loading states for all async operations
+- Hover and focus states on every interactive element
+- Smooth transitions (200ms default, 500ms for larger animations)
+- Consistent spacing using Tailwind's scale (4, 6, 8, 12, etc.)
+
+### Anti-patterns to Avoid
+- Flat, lifeless buttons without hover feedback
+- Elements that shift layout on interaction
+- Missing loading spinners or skeleton states
+- Inconsistent border radius or spacing
+- Light theme leakage (everything must work in dark mode)
+
 ## Skills to Use
 
 **Always load these skills for relevant work:**

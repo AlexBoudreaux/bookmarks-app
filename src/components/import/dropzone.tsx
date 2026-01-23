@@ -128,7 +128,7 @@ export function Dropzone() {
 
   return (
     <>
-      <div className="w-full max-w-2xl">
+      <div className="w-full">
         <label
           htmlFor="file-upload"
           className={`group relative block ${isLoading ? 'pointer-events-none' : 'cursor-pointer'}`}

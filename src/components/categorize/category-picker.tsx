@@ -203,17 +203,17 @@ export function CategoryPicker({
             const keyHint = index === 9 ? '0' : (index + 1).toString()
             return (
               <div key={category.id} className="relative group/btn">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-xl opacity-0 group-hover/btn:opacity-100 blur transition-opacity" />
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/30 to-teal-500/30 rounded-xl opacity-0 group-hover/btn:opacity-100 blur-sm transition-all duration-200" />
                 <button
                   onClick={() => handleMainCategorySelect(category)}
-                  className="relative w-full bg-zinc-800/30 hover:bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-3 text-left transition-all"
+                  className="relative w-full h-14 bg-zinc-800/50 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-xl px-3 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/5"
                   aria-label={`${category.name} - Press ${keyHint}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-zinc-600 bg-zinc-900/50 px-2 py-0.5 rounded">
+                  <div className="flex items-center gap-2.5 h-full">
+                    <span className="shrink-0 text-xs font-mono text-emerald-400/80 bg-emerald-500/10 border border-emerald-500/20 w-6 h-6 flex items-center justify-center rounded-md">
                       {keyHint}
                     </span>
-                    <span className="text-sm text-zinc-400">{category.name}</span>
+                    <span className="text-sm text-zinc-300 truncate">{category.name}</span>
                   </div>
                 </button>
               </div>
@@ -222,17 +222,17 @@ export function CategoryPicker({
 
           {/* New category button */}
           <div className="relative group/btn">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-xl opacity-0 group-hover/btn:opacity-100 blur transition-opacity" />
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-500/20 to-zinc-400/20 rounded-xl opacity-0 group-hover/btn:opacity-100 blur-sm transition-all duration-200" />
             <button
               onClick={handleNewCategory}
-              className="relative w-full bg-zinc-800/30 hover:bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-3 text-left transition-all"
+              className="relative w-full h-14 bg-zinc-800/30 hover:bg-zinc-800/50 border border-dashed border-zinc-700/50 hover:border-zinc-600 rounded-xl px-3 transition-all duration-200"
               aria-label="New category - Press -"
             >
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-mono text-zinc-600 bg-zinc-900/50 px-2 py-0.5 rounded">
+              <div className="flex items-center gap-2.5 h-full">
+                <span className="shrink-0 text-xs font-mono text-zinc-500 bg-zinc-800/50 border border-zinc-700/50 w-6 h-6 flex items-center justify-center rounded-md">
                   -
                 </span>
-                <span className="text-sm text-zinc-400">New...</span>
+                <span className="text-sm text-zinc-500">New...</span>
               </div>
             </button>
           </div>
@@ -245,17 +245,17 @@ export function CategoryPicker({
             const keyHint = index === 9 ? '0' : (index + 1).toString()
             return (
               <div key={category.id} className="relative group/btn">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-xl opacity-0 group-hover/btn:opacity-100 blur transition-opacity" />
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-teal-500/30 to-cyan-500/30 rounded-xl opacity-0 group-hover/btn:opacity-100 blur-sm transition-all duration-200" />
                 <button
                   onClick={() => handleSubcategorySelect(category)}
-                  className="relative w-full bg-zinc-800/30 hover:bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-3 text-left transition-all"
+                  className="relative w-full h-14 bg-zinc-800/50 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-xl px-3 transition-all duration-200 hover:shadow-lg hover:shadow-teal-500/5"
                   aria-label={`${category.name} - Press ${keyHint}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-zinc-600 bg-zinc-900/50 px-2 py-0.5 rounded">
+                  <div className="flex items-center gap-2.5 h-full">
+                    <span className="shrink-0 text-xs font-mono text-teal-400/80 bg-teal-500/10 border border-teal-500/20 w-6 h-6 flex items-center justify-center rounded-md">
                       {keyHint}
                     </span>
-                    <span className="text-sm text-zinc-400">{category.name}</span>
+                    <span className="text-sm text-zinc-300 truncate">{category.name}</span>
                   </div>
                 </button>
               </div>
@@ -264,17 +264,17 @@ export function CategoryPicker({
 
           {/* New subcategory button */}
           <div className="relative group/btn">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-xl opacity-0 group-hover/btn:opacity-100 blur transition-opacity" />
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-500/20 to-zinc-400/20 rounded-xl opacity-0 group-hover/btn:opacity-100 blur-sm transition-all duration-200" />
             <button
               onClick={handleNewCategory}
-              className="relative w-full bg-zinc-800/30 hover:bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-3 text-left transition-all"
+              className="relative w-full h-14 bg-zinc-800/30 hover:bg-zinc-800/50 border border-dashed border-zinc-700/50 hover:border-zinc-600 rounded-xl px-3 transition-all duration-200"
               aria-label="New subcategory - Press -"
             >
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-mono text-zinc-600 bg-zinc-900/50 px-2 py-0.5 rounded">
+              <div className="flex items-center gap-2.5 h-full">
+                <span className="shrink-0 text-xs font-mono text-zinc-500 bg-zinc-800/50 border border-zinc-700/50 w-6 h-6 flex items-center justify-center rounded-md">
                   -
                 </span>
-                <span className="text-sm text-zinc-400">New...</span>
+                <span className="text-sm text-zinc-500">New...</span>
               </div>
             </button>
           </div>
