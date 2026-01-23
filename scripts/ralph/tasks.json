@@ -25,7 +25,7 @@
       ],
       "priority": 2,
       "dependsOn": [],
-      "done": false
+      "done": true
     },
     {
       "id": "SETUP-003",
