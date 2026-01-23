@@ -655,3 +655,35 @@ Started: 2026-01-22
 - beforeEach hook receives testInfo as second argument to access test metadata like title
 
 ---
+
+## 2026-01-23 - BRW-001
+- Implemented browse page layout with collapsible sidebar and main area
+- Created BrowsePage server component that fetches categorized bookmarks and categories
+- Created BrowseContent client component with full UI implementation
+- Sidebar features: collapsible via toggle button, category tree with expand/collapse for subcategories, "All Bookmarks" option, usage counts, emerald accent for selected state
+- Main area features: search bar with placeholder, filter chips for Sort/Type/Domain/Has Notes, responsive bookmark grid (1-4 columns)
+- Bookmark cards show: tweet badge, title (line clamped), domain in monospace, notes preview if present
+- Empty state with icon and helpful message when no bookmarks
+- All 189 tests passing, build passes with no errors
+
+**Files changed:**
+- src/app/browse/page.tsx (created)
+- src/app/browse/page.test.tsx (created)
+- src/components/browse/browse-content.tsx (created)
+- src/components/browse/browse-content.test.tsx (created)
+
+**Learnings:**
+- Avoid nested buttons in HTML. They cause hydration errors. Use div containers with separate click handlers instead.
+- Server components fetch data, client components handle interactive state (sidebar collapse, category selection, search query)
+- Sidebar collapse pattern: data-collapsed attribute for testing + conditional width class
+- Category expansion: use Set<string> for expanded state, toggle via set add/delete
+
+**Design decisions:**
+- Dark theme consistent with rest of app (zinc-950 background, zinc-800 borders)
+- Emerald accent color for selected states matching categorize page
+- Collapsible sidebar to maximize browsing space
+- Filter chips as rounded pill buttons matching dashboard aesthetic
+- Grid layout responsive with 1/2/3/4 columns at breakpoints
+- Bookmark cards have hover effects and subtle transitions
+
+---
