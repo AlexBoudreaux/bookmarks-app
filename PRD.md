@@ -579,24 +579,31 @@ ANY_STATE → (press Delete) → FLASH_RED → MARK_SKIPPED_IN_DB → NEXT_BOOKM
 │             │                                               │
 │  Categories │  Active filters: [Tweet ×] [AI > Prompts ×]   │
 │             │                                               │
-│  All (1847) │  ┌─────────┐ ┌─────────┐ ┌─────────┐          │
-│             │  │ Tweet   │ │ Tweet   │ │ GitHub  │          │
-│  ▼ AI (423) │  │ preview │ │ preview │ │ preview │          │
-│    Prompts  │  │         │ │         │ │         │          │
-│    Agents   │  │ @naval  │ │ @dan    │ │ repo... │          │
-│    Models   │  │ How to..│ │ Thread..│ │ langch..│          │
-│    Papers   │  └─────────┘ └─────────┘ └─────────┘          │
+│  All (1847) │  ┌─────────┐ ┌───────┐ ┌─────────┐ ┌───────┐  │
+│             │  │ Tweet   │ │ BM    │ │ Tweet   │ │ BM    │  │
+│  ▼ AI (423) │  │ embed   │ │ card  │ │ embed   │ │ card  │  │
+│    Prompts  │  │         │ └───────┘ │         │ │       │  │
+│    Agents   │  │ @naval  │ ┌───────┐ │ @dan    │ └───────┘  │
+│    Models   │  │         │ │ BM    │ │         │ ┌───────┐  │
+│    Papers   │  └─────────┘ │ card  │ └─────────┘ │ BM    │  │
+│             │  ┌─────────┐ │       │ ┌─────────┐ │ card  │  │
+│  ▶ Dev (312)│  │ Tweet   │ └───────┘ │ Tweet   │ └───────┘  │
+│  ▶ Design   │  │ embed   │ ┌───────┐ │ embed   │            │
+│  ▶ Business │  │         │ │ BM    │ │         │            │
+│  ...        │  └─────────┘ └───────┘ └─────────┘            │
 │             │                                               │
-│  ▶ Dev (312)│  ┌─────────┐ ┌─────────┐ ┌─────────┐          │
-│  ▶ Design   │  │ Tweet   │ │ Tweet   │ │ Article │          │
-│  ▶ Business │  │ preview │ │ preview │ │ preview │          │
-│  ...        │  │         │ │         │ │         │          │
-│             │  └─────────┘ └─────────┘ └─────────┘          │
-│             │                                               │
-│             │  [Load more...]                               │
+│             │  (infinite scroll - loads more on scroll)     │
 │             │                                               │
 └─────────────┴───────────────────────────────────────────────┘
 ```
+
+**Layout: Masonry Grid**
+- 4-column masonry layout using CSS columns
+- Items stack tightly without wasted vertical space
+- Tweets display without card wrappers (native react-tweet styling)
+- Bookmark cards have header with globe icon, domain, and card background
+- Dynamic heights based on content (no fixed heights)
+- Infinite scroll loads 24 more items when scrolling near bottom
 
 ---
 
@@ -879,7 +886,7 @@ Use React hooks + URL state for simplicity:
 |-------|-----|
 | Loading results | Grid of skeleton cards |
 | No results | "No bookmarks found. Try different filters." with clear filters button |
-| Loading more | Spinner at bottom of grid |
+| Loading more | Spinner at bottom of masonry grid (infinite scroll) |
 | Search in progress | Subtle spinner in search bar |
 
 ### Category Management

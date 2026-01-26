@@ -933,6 +933,43 @@ Started: 2026-01-22
 
 ---
 
+## 2026-01-26 - BRW-006
+- Implemented masonry layout for browse page
+- Replaced CSS grid with CSS columns for Pinterest-style masonry effect
+- Tweets display without card wrappers (native react-tweet styling)
+- Bookmark cards have new header with globe icon, "Bookmark" label, and domain
+- Dynamic heights based on content (removed fixed heights)
+- Replaced "Load More" button with infinite scroll using IntersectionObserver
+- Updated CLAUDE.md with dev-browser viewport guidance (1440x900 for 14" MacBook Air)
+- Added IntersectionObserver mock to test setup for jsdom compatibility
+- Updated tests for new ITEMS_PER_PAGE (24) and masonry layout
+- All 336 tests passing, build succeeds
+
+**Files changed:**
+- src/components/browse/browse-content.tsx (masonry layout + infinite scroll)
+- src/components/browse/browse-content.test.tsx (updated for masonry + infinite scroll)
+- src/components/browse/browse-link-card.tsx (added header, dynamic heights)
+- src/app/globals.css (react-tweet styling for masonry)
+- src/test/setup.ts (IntersectionObserver mock)
+- CLAUDE.md (dev-browser viewport guidance)
+- PRD.md (browse page layout documentation)
+
+**Learnings:**
+- CSS columns (columns-1 md:columns-2 lg:columns-3 xl:columns-4) creates masonry layout
+- break-inside-avoid prevents items from breaking across columns
+- IntersectionObserver needs mocking in jsdom (not defined by default)
+- Tweets wrapped in article for semantic HTML, bookmarks also use article
+- Infinite scroll sentinel element observed by IntersectionObserver triggers load
+
+**Design decisions:**
+- Masonry layout eliminates wasted vertical space between items
+- Tweets use native react-tweet styling without additional card wrapper
+- Bookmark cards have header with globe icon for visual weight parity with tweets
+- 24 items per page (ITEMS_PER_PAGE) for good initial density
+- Loading spinner at bottom indicates more content available
+
+---
+
 ## 2026-01-23 - OG-002
 - Updated LinkCard component to display OG images when available
 - Added optional ogImage prop to LinkCardProps interface
