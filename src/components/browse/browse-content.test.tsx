@@ -118,13 +118,13 @@ describe('BrowseContent', () => {
     expect(uiButton).toHaveAttribute('data-selected', 'true')
   })
 
-  it('has responsive grid layout', () => {
+  it('has responsive masonry layout', () => {
     const { container } = render(<BrowseContent categories={mockCategories} bookmarks={mockBookmarks} bookmarkCategories={mockBookmarkCategories} />)
 
     const grid = container.querySelector('[data-testid="bookmark-grid"]')
     expect(grid).toBeInTheDocument()
-    // Grid should have responsive classes
-    expect(grid?.className).toMatch(/grid/)
+    // Should have responsive columns for masonry layout
+    expect(grid?.className).toMatch(/columns/)
   })
 
   // BRW-002: Category tree sidebar tests
@@ -245,9 +245,9 @@ describe('BrowseContent', () => {
       expect(screen.getByText('LinkCard: Example Article')).toBeInTheDocument()
     })
 
-    it('shows load more button when there are more bookmarks', () => {
-      // Create 15 bookmarks (more than ITEMS_PER_PAGE of 12)
-      const manyBookmarks = Array.from({ length: 15 }, (_, i) => ({
+    it('shows loading spinner when there are more bookmarks', () => {
+      // Create 30 bookmarks (more than ITEMS_PER_PAGE of 24)
+      const manyBookmarks = Array.from({ length: 30 }, (_, i) => ({
         id: `bm-${i}`,
         url: `https://example.com/${i}`,
         title: `Bookmark ${i}`,
@@ -261,21 +261,19 @@ describe('BrowseContent', () => {
 
       render(<BrowseContent categories={[]} bookmarks={manyBookmarks} bookmarkCategories={[]} />)
 
-      // Should show load more button
-      expect(screen.getByTestId('load-more-button')).toBeInTheDocument()
-      expect(screen.getByText(/3 remaining/)).toBeInTheDocument()
+      // Should show loading spinner for infinite scroll
+      expect(document.querySelector('.animate-spin')).toBeInTheDocument()
     })
 
-    it('does not show load more button when all bookmarks displayed', () => {
+    it('does not show loading spinner when all bookmarks displayed', () => {
       render(<BrowseContent categories={mockCategories} bookmarks={mockBookmarks} bookmarkCategories={mockBookmarkCategories} />)
 
-      // Only 3 bookmarks, should not show load more
-      expect(screen.queryByTestId('load-more-button')).not.toBeInTheDocument()
+      // Only 3 bookmarks, should not show loading spinner
+      expect(document.querySelector('.animate-spin')).not.toBeInTheDocument()
     })
 
-    it('clicking load more shows more bookmarks', async () => {
-      const user = userEvent.setup()
-      const manyBookmarks = Array.from({ length: 15 }, (_, i) => ({
+    it('initially shows paginated bookmarks', () => {
+      const manyBookmarks = Array.from({ length: 30 }, (_, i) => ({
         id: `bm-${i}`,
         url: `https://example.com/${i}`,
         title: `Bookmark ${i}`,
@@ -291,22 +289,13 @@ describe('BrowseContent', () => {
 
       const grid = screen.getByTestId('bookmark-grid')
 
-      // Initially should show 12 bookmarks
-      expect(within(grid).getAllByRole('article')).toHaveLength(12)
-
-      // Click load more
-      await user.click(screen.getByTestId('load-more-button'))
-
-      // Should now show all 15 bookmarks
-      expect(within(grid).getAllByRole('article')).toHaveLength(15)
-
-      // Load more button should be gone
-      expect(screen.queryByTestId('load-more-button')).not.toBeInTheDocument()
+      // Initially should show 24 bookmarks (ITEMS_PER_PAGE)
+      expect(within(grid).getAllByRole('article')).toHaveLength(24)
     })
 
     it('resets pagination when category filter changes', async () => {
       const user = userEvent.setup()
-      const manyBookmarks = Array.from({ length: 15 }, (_, i) => ({
+      const manyBookmarks = Array.from({ length: 30 }, (_, i) => ({
         id: `bm-${i}`,
         url: `https://example.com/${i}`,
         title: `Bookmark ${i}`,
@@ -332,19 +321,16 @@ describe('BrowseContent', () => {
         />
       )
 
-      // Click load more to show all
-      await user.click(screen.getByTestId('load-more-button'))
-
       const grid = screen.getByTestId('bookmark-grid')
-      expect(within(grid).getAllByRole('article')).toHaveLength(15)
+      expect(within(grid).getAllByRole('article')).toHaveLength(24)
 
       // Click a category to filter
       const uiButton = screen.getByText('UI').closest('button')
       await user.click(uiButton!)
 
-      // Should reset to initial 12 (or all 15 if fewer than 12 in category)
-      // Since all 15 are in UI category, should show 12 again
-      expect(within(grid).getAllByRole('article')).toHaveLength(12)
+      // Should reset to initial 24 (or all 30 if fewer than 24 in category)
+      // Since all 30 are in UI category, should show 24 again
+      expect(within(grid).getAllByRole('article')).toHaveLength(24)
     })
   })
 
@@ -480,7 +466,7 @@ describe('BrowseContent', () => {
     })
 
     it('resets pagination when search query changes', async () => {
-      const manyBookmarks = Array.from({ length: 15 }, (_, i) => ({
+      const manyBookmarks = Array.from({ length: 10 }, (_, i) => ({
         id: `bm-${i}`,
         url: `https://example.com/${i}`,
         title: `Bookmark ${i}`,
@@ -495,11 +481,8 @@ describe('BrowseContent', () => {
       const user = userEvent.setup()
       render(<BrowseContent categories={[]} bookmarks={manyBookmarks} bookmarkCategories={[]} />)
 
-      // Click load more to show all
-      await user.click(screen.getByTestId('load-more-button'))
-
       const grid = screen.getByTestId('bookmark-grid')
-      expect(within(grid).getAllByRole('article')).toHaveLength(15)
+      expect(within(grid).getAllByRole('article')).toHaveLength(10)
 
       // Setup mock for search
       const mockFetch = vi.fn().mockResolvedValue({
@@ -853,9 +836,7 @@ describe('BrowseContent', () => {
 
         render(<BrowseContent categories={[]} bookmarks={manyBookmarks} bookmarkCategories={[]} />)
 
-        // Click load more to expand
-        await user.click(screen.getByTestId('load-more-button'))
-
+        // All 20 bookmarks should be visible (under ITEMS_PER_PAGE of 24)
         let grid = screen.getByTestId('bookmark-grid')
         expect(within(grid).getAllByRole('article')).toHaveLength(20)
 

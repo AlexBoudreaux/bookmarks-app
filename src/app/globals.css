@@ -134,3 +134,18 @@
 .animate-shake {
   animation: shake 0.4s ease-in-out;
 }
+
+/* React-tweet styling for masonry layout */
+.tweet-card {
+  /* Remove default margins from react-tweet */
+  & [data-theme="dark"] {
+    --tweet-container-margin: 0;
+  }
+}
+
+.tweet-card-embed {
+  /* Let tweets size naturally */
+  & > div {
+    margin: 0 !important;
+  }
+}

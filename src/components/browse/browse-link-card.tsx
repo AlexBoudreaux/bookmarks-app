@@ -1,6 +1,6 @@
 'use client'
 
-import { ExternalLink, FileText, StickyNote } from 'lucide-react'
+import { ExternalLink, Globe, StickyNote } from 'lucide-react'
 import { extractDomain } from '@/lib/extract-domain'
 
 interface BrowseLinkCardProps {
@@ -15,10 +15,21 @@ export function BrowseLinkCard({ url, title, domain, notes, ogImage }: BrowseLin
   const displayDomain = domain || extractDomain(url)
 
   return (
-    <div className="flex flex-col h-full">
-      {/* OG Image or placeholder */}
-      {ogImage ? (
-        <div className="relative h-32 w-full overflow-hidden rounded-t-lg bg-zinc-800/50">
+    <div className="flex flex-col">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-800/50">
+        <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+          <Globe className="w-4 h-4 text-emerald-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="text-xs font-medium text-zinc-400">Bookmark</span>
+          <p className="text-xs font-mono text-zinc-500 truncate">{displayDomain}</p>
+        </div>
+      </div>
+
+      {/* OG Image (only shown if available) */}
+      {ogImage && (
+        <div className="relative aspect-video w-full overflow-hidden bg-zinc-800/50">
           <img
             src={ogImage}
             alt=""
@@ -26,21 +37,12 @@ export function BrowseLinkCard({ url, title, domain, notes, ogImage }: BrowseLin
             loading="lazy"
           />
         </div>
-      ) : (
-        <div className="h-24 w-full rounded-t-lg bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 flex items-center justify-center">
-          <FileText className="w-8 h-8 text-zinc-600" />
-        </div>
       )}
 
       {/* Content */}
-      <div className="flex-1 p-4 flex flex-col">
-        {/* Domain badge */}
-        <span className="text-xs font-mono text-zinc-500 mb-2 truncate">
-          {displayDomain}
-        </span>
-
+      <div className="p-4 flex flex-col">
         {/* Title */}
-        <h4 className="text-sm font-medium text-zinc-200 line-clamp-2 mb-2 flex-1">
+        <h4 className="text-sm font-medium text-zinc-200 mb-2">
           {title || 'Untitled'}
         </h4>
 
@@ -48,7 +50,7 @@ export function BrowseLinkCard({ url, title, domain, notes, ogImage }: BrowseLin
         {notes && (
           <div className="flex items-start gap-1.5 mt-2 pt-2 border-t border-zinc-800/50">
             <StickyNote className="w-3 h-3 text-amber-500/70 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-zinc-400 line-clamp-2 italic">
+            <p className="text-xs text-zinc-400 italic">
               {notes}
             </p>
           </div>

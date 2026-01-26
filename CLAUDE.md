@@ -117,7 +117,7 @@ This is a **production-quality SaaS product**, not a beta side project. Every sc
 
 - **frontend-design**: Load when building UI components. This app should look like a polished personal dashboard. Not bold or flashy. Sleek, minimal, single accent color, dark theme only. No landing page aesthetics.
 
-- **dev-browser**: Load for E2E testing and visual verification. Use to take screenshots, verify UI looks correct, test keyboard interactions.
+- **dev-browser**: Load for E2E testing and visual verification. Use to take screenshots, verify UI looks correct, test keyboard interactions. **Always use viewport `{ width: 1440, height: 900 }`** (typical 14" MacBook Air browser window).
 
 ## Research Requirements
 

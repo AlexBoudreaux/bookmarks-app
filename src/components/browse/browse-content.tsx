@@ -7,8 +7,9 @@ import { TweetCard } from './tweet-card'
 import { BrowseLinkCard } from './browse-link-card'
 import { useDebounce } from '@/hooks/use-debounce'
 
-const ITEMS_PER_PAGE = 12
+const ITEMS_PER_PAGE = 24
 const SEARCH_DEBOUNCE_MS = 300
+const LOAD_MORE_THRESHOLD = 200 // pixels from bottom to trigger load
 
 type SortOption = 'newest' | 'oldest' | 'recently_viewed'
 type TypeFilter = 'all' | 'tweet' | 'non-tweet'
@@ -69,6 +70,8 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
   const sortDropdownRef = useRef<HTMLDivElement>(null)
   const typeDropdownRef = useRef<HTMLDivElement>(null)
   const domainDropdownRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -268,6 +271,24 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
   useEffect(() => {
     setDisplayCount(ITEMS_PER_PAGE)
   }, [typeFilter, selectedDomains, hasNotesFilter, sortOption])
+
+  // Infinite scroll using Intersection Observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          setDisplayCount(prev => prev + ITEMS_PER_PAGE)
+        }
+      },
+      { threshold: 0, rootMargin: `${LOAD_MORE_THRESHOLD}px` }
+    )
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [hasMore])
 
   // Filter handlers
   const handleSortChange = (option: SortOption) => {
@@ -697,31 +718,33 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
           )}
         </div>
 
-        {/* Bookmark Grid */}
+        {/* Bookmark Masonry Grid */}
         <div className="flex-1 overflow-y-auto p-4">
-          <div
-            data-testid="bookmark-grid"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-          >
-            {filteredBookmarks.length === 0 ? (
-              <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-16 h-16 rounded-full bg-zinc-800/50 flex items-center justify-center mb-4">
-                  <Bookmark className="w-8 h-8 text-zinc-600" />
-                </div>
-                <h3 className="text-lg font-medium text-zinc-300 mb-2">No bookmarks yet</h3>
-                <p className="text-sm text-zinc-500 max-w-md">
-                  Import your Chrome bookmarks to get started, then categorize them to see them here.
-                </p>
+          {filteredBookmarks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-16 h-16 rounded-full bg-zinc-800/50 flex items-center justify-center mb-4">
+                <Bookmark className="w-8 h-8 text-zinc-600" />
               </div>
-            ) : (
-              displayedBookmarks.map(bookmark => (
-                <article
-                  key={bookmark.id}
-                  className="group relative rounded-lg border border-zinc-800/50 bg-zinc-900/30 hover:bg-zinc-800/30 hover:border-zinc-700/50 transition-all overflow-hidden"
-                >
-                  {bookmark.is_tweet ? (
+              <h3 className="text-lg font-medium text-zinc-300 mb-2">No bookmarks yet</h3>
+              <p className="text-sm text-zinc-500 max-w-md">
+                Import your Chrome bookmarks to get started, then categorize them to see them here.
+              </p>
+            </div>
+          ) : (
+            <div
+              data-testid="bookmark-grid"
+              className="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-4"
+            >
+              {displayedBookmarks.map(bookmark => (
+                bookmark.is_tweet ? (
+                  <article key={bookmark.id} className="break-inside-avoid mb-4">
                     <TweetCard url={bookmark.url} title={bookmark.title} />
-                  ) : (
+                  </article>
+                ) : (
+                  <article
+                    key={bookmark.id}
+                    className="break-inside-avoid mb-4 group relative rounded-lg border border-zinc-800/50 bg-zinc-900/30 hover:bg-zinc-800/30 hover:border-zinc-700/50 transition-all overflow-hidden"
+                  >
                     <BrowseLinkCard
                       url={bookmark.url}
                       title={bookmark.title}
@@ -729,23 +752,19 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
                       notes={bookmark.notes}
                       ogImage={bookmark.og_image}
                     />
-                  )}
-                </article>
-              ))
-            )}
-          </div>
+                  </article>
+                )
+              ))}
+            </div>
+          )}
 
-          {/* Load More Button */}
+          {/* Infinite scroll sentinel */}
           {hasMore && (
-            <div className="flex justify-center mt-8 pb-4">
-              <button
-                onClick={loadMore}
-                data-testid="load-more-button"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 hover:text-zinc-100 transition-colors text-sm font-medium"
-              >
-                <Loader2 className="w-4 h-4" />
-                Load more ({filteredBookmarks.length - displayCount} remaining)
-              </button>
+            <div
+              ref={loadMoreRef}
+              className="flex justify-center py-8"
+            >
+              <Loader2 className="w-5 h-5 text-zinc-500 animate-spin" />
             </div>
           )}
         </div>
