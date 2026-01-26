@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase'
 import { CategoriesContent } from '@/components/categories/categories-content'
 import { AddCategoryButton } from '@/components/categories/add-category-button'
 
+export const dynamic = 'force-dynamic'
+
 export default async function CategoriesPage() {
   // Fetch all categories
   const { data: categories } = await supabase

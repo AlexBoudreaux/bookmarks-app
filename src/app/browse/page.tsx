@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase'
 import { BrowseContent } from '@/components/browse/browse-content'
 import { ExportButton } from '@/components/browse/export-button'
 
+export const dynamic = 'force-dynamic'
+
 export default async function BrowsePage() {
   // Fetch categorized bookmarks (not keepers, not skipped)
   const { data: bookmarks } = await supabase
