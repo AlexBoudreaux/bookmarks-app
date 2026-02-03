@@ -8,10 +8,6 @@ export const dynamic = 'force-dynamic'
 
 type Bookmark = Database['public']['Tables']['bookmarks']['Row']
 
-interface PositionValue {
-  index: number
-}
-
 // Fetch all bookmarks using pagination to bypass Supabase's 1000 row limit
 async function fetchAllBookmarks(): Promise<Bookmark[]> {
   const PAGE_SIZE = 1000
@@ -52,23 +48,10 @@ export default async function CategorizePage() {
   const bookmarks = await fetchAllBookmarks()
 
   // Fetch all categories (main and sub)
-  const { data: categories, error: categoriesError } = await supabase
+  const { data: categories } = await supabase
     .from('categories')
     .select('*')
     .order('usage_count', { ascending: false })
-
-  // Fetch saved position from settings
-  const { data: positionData } = await supabase
-    .from('settings')
-    .select('value')
-    .eq('key', 'categorize_position')
-    .single()
-
-  const savedPosition = (positionData?.value as PositionValue | null)?.index ?? 0
-  const totalCount = bookmarks?.length || 0
-
-  // Ensure saved position doesn't exceed bookmark count
-  const initialIndex = Math.min(savedPosition, Math.max(0, totalCount - 1))
 
   return (
     <div className="h-screen overflow-hidden bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 flex flex-col">
@@ -96,7 +79,6 @@ export default async function CategorizePage() {
           <CategorizeWrapper
             categories={categories || []}
             bookmarks={bookmarks || []}
-            initialIndex={initialIndex}
           />
         </div>
       </main>

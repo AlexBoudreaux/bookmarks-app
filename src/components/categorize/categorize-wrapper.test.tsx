@@ -80,7 +80,14 @@ vi.mock('./notes-field', () => ({
   ),
 }))
 
-describe('CategorizeWrapper - Navigation', () => {
+// Mock next/link
+vi.mock('next/link', () => ({
+  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
+    <a href={href} className={className}>{children}</a>
+  ),
+}))
+
+describe('CategorizeWrapper - Position-based Navigation', () => {
   const mockCategories = [
     { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
     { id: '1a', name: 'Components', parent_id: '1', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
@@ -136,7 +143,6 @@ describe('CategorizeWrapper - Navigation', () => {
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
         />
       )
 
@@ -161,7 +167,6 @@ describe('CategorizeWrapper - Navigation', () => {
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
         />
       )
 
@@ -177,13 +182,12 @@ describe('CategorizeWrapper - Navigation', () => {
       expect(screen.getByTestId('tweet-preview')).toHaveTextContent('https://twitter.com/user/status/123')
     })
 
-    it('clears selected categories after navigating forward', async () => {
+    it('clears selected categories after navigating forward to unprocessed bookmark', async () => {
       const user = userEvent.setup()
       render(
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
         />
       )
 
@@ -201,6 +205,79 @@ describe('CategorizeWrapper - Navigation', () => {
     })
   })
 
+  describe('Left Arrow Key (←) - Going Back', () => {
+    it('moves to previous bookmark when pressing left arrow', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+        />
+      )
+
+      // First bookmark should be shown
+      expect(screen.getByTestId('tweet-preview')).toHaveTextContent('https://twitter.com/user/status/123')
+
+      // Select category and move forward
+      await user.click(screen.getByTestId('select-category'))
+      await user.keyboard('{ArrowRight}')
+
+      // Should show second bookmark
+      await waitFor(() => {
+        expect(screen.getByTestId('link-card')).toHaveTextContent('GitHub Repo')
+      })
+
+      // Press left arrow to go back
+      await user.keyboard('{ArrowLeft}')
+
+      // Should show first bookmark again
+      await waitFor(() => {
+        expect(screen.getByTestId('tweet-preview')).toHaveTextContent('https://twitter.com/user/status/123')
+      })
+    })
+
+    it('does nothing when at start and pressing left arrow', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+        />
+      )
+
+      // First bookmark should be shown
+      expect(screen.getByTestId('tweet-preview')).toHaveTextContent('https://twitter.com/user/status/123')
+
+      // Press left arrow - should do nothing at start
+      await user.keyboard('{ArrowLeft}')
+
+      // Should still show first bookmark
+      expect(screen.getByTestId('tweet-preview')).toHaveTextContent('https://twitter.com/user/status/123')
+    })
+
+    it('restores selected categories when navigating back to processed bookmark', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+        />
+      )
+
+      // Select category and move forward
+      await user.click(screen.getByTestId('select-category'))
+      await user.keyboard('{ArrowRight}')
+
+      // Navigate to second, then back
+      await user.keyboard('{ArrowLeft}')
+
+      // Categories should be restored
+      await waitFor(() => {
+        expect(screen.getByTestId('selected-pairs')).toHaveTextContent('UI')
+      })
+    })
+  })
+
   describe('Save categorization to API', () => {
     it('calls categorize API when moving to next bookmark', async () => {
       const user = userEvent.setup()
@@ -208,7 +285,6 @@ describe('CategorizeWrapper - Navigation', () => {
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
         />
       )
 
@@ -237,7 +313,6 @@ describe('CategorizeWrapper - Navigation', () => {
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
         />
       )
 
@@ -247,83 +322,173 @@ describe('CategorizeWrapper - Navigation', () => {
       // Should NOT call categorize API
       expect(mockFetch).not.toHaveBeenCalledWith('/api/bookmarks/categorize', expect.anything())
     })
-  })
 
-  describe('Left Arrow Key (←)', () => {
-    it('is disabled - going back is not supported', async () => {
+    it('shows error message when API fails', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 500, json: () => Promise.resolve({ error: 'Server error' }) })
       const user = userEvent.setup()
       render(
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
         />
       )
 
-      // First bookmark should be shown
-      expect(screen.getByTestId('tweet-preview')).toHaveTextContent('https://twitter.com/user/status/123')
+      // Select a category
+      await user.click(screen.getByTestId('select-category'))
 
-      // Press left arrow - should do nothing
+      // Press right arrow
+      await user.keyboard('{ArrowRight}')
+
+      // Should show error message
+      await waitFor(() => {
+        expect(screen.getByText('Server error')).toBeInTheDocument()
+      })
+
+      // Should NOT advance to next bookmark
+      expect(screen.getByTestId('tweet-preview')).toHaveTextContent('https://twitter.com/user/status/123')
+    })
+
+    it('does not call API when re-visiting already processed bookmark with same categories', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+        />
+      )
+
+      // Select category and move forward (first API call)
+      await user.click(screen.getByTestId('select-category'))
+      await user.keyboard('{ArrowRight}')
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledTimes(1)
+      })
+
+      // Go back
       await user.keyboard('{ArrowLeft}')
 
-      // Should still show first bookmark (going back is disabled)
-      expect(screen.getByTestId('tweet-preview')).toHaveTextContent('https://twitter.com/user/status/123')
+      // Categories are pre-populated, press right without changing anything
+      await user.keyboard('{ArrowRight}')
+
+      // Should NOT make another API call (no-op detection)
+      expect(mockFetch).toHaveBeenCalledTimes(1)
     })
   })
 
   describe('Progress tracking', () => {
-    it('shows remaining count in display', () => {
+    it('shows position in total count', () => {
       render(
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
         />
       )
 
-      // Should display position 1 of total (always starts at first bookmark)
+      // Should display position 1 of 3
       expect(screen.getByText('1')).toBeInTheDocument()
-      expect(screen.getByText('3')).toBeInTheDocument() // total count
+      expect(screen.getByText('3')).toBeInTheDocument()
     })
 
-    it('updates count when bookmark is processed', async () => {
+    it('updates position when navigating forward', async () => {
       const user = userEvent.setup()
       render(
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
         />
       )
-
-      // Should start with 3 bookmarks
-      expect(screen.getByText('3')).toBeInTheDocument()
 
       // Select a category and move forward
       await user.click(screen.getByTestId('select-category'))
       await user.keyboard('{ArrowRight}')
 
-      // Total should decrease to 2 (bookmark removed from queue)
+      // Should show position 2 of 3
       await waitFor(() => {
         expect(screen.getByText('2')).toBeInTheDocument()
+        expect(screen.getByText('3')).toBeInTheDocument()
+      })
+    })
+
+    it('shows session stats (categorized and skipped counts)', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+        />
+      )
+
+      // Select category and move forward
+      await user.click(screen.getByTestId('select-category'))
+      await user.keyboard('{ArrowRight}')
+
+      // Should show categorized count
+      await waitFor(() => {
+        expect(screen.getByText('1')).toBeInTheDocument()
+        expect(screen.getByText(/categorized/)).toBeInTheDocument()
+      })
+    })
+
+    it('shows "Previously categorized" indicator when viewing categorized bookmark', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+        />
+      )
+
+      // Select category and move forward
+      await user.click(screen.getByTestId('select-category'))
+      await user.keyboard('{ArrowRight}')
+
+      // Go back to categorized bookmark
+      await user.keyboard('{ArrowLeft}')
+
+      // Should show "Previously categorized" indicator
+      await waitFor(() => {
+        expect(screen.getByText(/previously categorized/i)).toBeInTheDocument()
+      })
+    })
+
+    it('shows "Previously skipped" indicator when viewing skipped bookmark', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+        />
+      )
+
+      // Skip the first bookmark
+      await user.keyboard('{Delete}')
+
+      // Go back to skipped bookmark
+      await user.keyboard('{ArrowLeft}')
+
+      // Should show "Previously skipped" indicator
+      await waitFor(() => {
+        expect(screen.getByText(/previously skipped/i)).toBeInTheDocument()
       })
     })
   })
 
   describe('Empty state', () => {
-    it('shows completion message when no bookmarks', () => {
+    it('shows empty message when no bookmarks', () => {
       render(
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={[]}
-          initialIndex={0}
         />
       )
 
       expect(screen.getByText(/no bookmarks to categorize/i)).toBeInTheDocument()
     })
+  })
 
-    it('shows completion message when processing last bookmark', async () => {
+  describe('End of list', () => {
+    it('shows end of list when navigating past last bookmark', async () => {
       const user = userEvent.setup()
       const singleBookmark = [mockBookmarks[0]]
 
@@ -331,7 +496,6 @@ describe('CategorizeWrapper - Navigation', () => {
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={singleBookmark}
-          initialIndex={0}
         />
       )
 
@@ -339,63 +503,93 @@ describe('CategorizeWrapper - Navigation', () => {
       await user.click(screen.getByTestId('select-category'))
       await user.keyboard('{ArrowRight}')
 
-      // Should show completion state
+      // Should show end of list state
       await waitFor(() => {
-        expect(screen.getByText(/all bookmarks categorized/i)).toBeInTheDocument()
+        expect(screen.getByText(/end of list/i)).toBeInTheDocument()
+      })
+    })
+
+    it('shows session stats in end of list screen', async () => {
+      const user = userEvent.setup()
+      const singleBookmark = [mockBookmarks[0]]
+
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={singleBookmark}
+        />
+      )
+
+      // Select category and process
+      await user.click(screen.getByTestId('select-category'))
+      await user.keyboard('{ArrowRight}')
+
+      // Should show session stats
+      await waitFor(() => {
+        expect(screen.getByText(/1 categorized/)).toBeInTheDocument()
+        expect(screen.getByText(/0 skipped/)).toBeInTheDocument()
+      })
+    })
+
+    it('allows going back from end of list screen', async () => {
+      const user = userEvent.setup()
+      const singleBookmark = [mockBookmarks[0]]
+
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={singleBookmark}
+        />
+      )
+
+      // Select category and process
+      await user.click(screen.getByTestId('select-category'))
+      await user.keyboard('{ArrowRight}')
+
+      // Should be at end of list
+      await waitFor(() => {
+        expect(screen.getByText(/end of list/i)).toBeInTheDocument()
+      })
+
+      // Press left arrow or click go back button
+      await user.keyboard('{ArrowLeft}')
+
+      // Should go back to last bookmark
+      await waitFor(() => {
+        expect(screen.getByTestId('tweet-preview')).toBeInTheDocument()
+      })
+    })
+
+    it('shows Browse and Export links in end of list screen', async () => {
+      const user = userEvent.setup()
+      const singleBookmark = [mockBookmarks[0]]
+
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={singleBookmark}
+        />
+      )
+
+      // Select category and process
+      await user.click(screen.getByTestId('select-category'))
+      await user.keyboard('{ArrowRight}')
+
+      // Should show Browse and Export links
+      await waitFor(() => {
+        expect(screen.getByRole('link', { name: /browse/i })).toBeInTheDocument()
+        expect(screen.getByRole('link', { name: /export/i })).toBeInTheDocument()
       })
     })
   })
 
   describe('Skip bookmark (Delete/Backspace)', () => {
-    it('calls onSkip with current bookmark when Delete is pressed', async () => {
+    it('skips bookmark and advances when Delete is pressed', async () => {
       const user = userEvent.setup()
-      const onSkip = vi.fn()
       render(
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
-          onSkip={onSkip}
-        />
-      )
-
-      // Press Delete key
-      await user.keyboard('{Delete}')
-
-      await waitFor(() => {
-        expect(onSkip).toHaveBeenCalledWith(mockBookmarks[0])
-      })
-    })
-
-    it('calls onSkip with current bookmark when Backspace is pressed', async () => {
-      const user = userEvent.setup()
-      const onSkip = vi.fn()
-      render(
-        <CategorizeWrapper
-          categories={mockCategories}
-          bookmarks={mockBookmarks}
-          initialIndex={0}
-          onSkip={onSkip}
-        />
-      )
-
-      // Press Backspace key
-      await user.keyboard('{Backspace}')
-
-      await waitFor(() => {
-        expect(onSkip).toHaveBeenCalledWith(mockBookmarks[0])
-      })
-    })
-
-    it('moves to next bookmark after skipping', async () => {
-      const user = userEvent.setup()
-      const onSkip = vi.fn()
-      render(
-        <CategorizeWrapper
-          categories={mockCategories}
-          bookmarks={mockBookmarks}
-          initialIndex={0}
-          onSkip={onSkip}
         />
       )
 
@@ -405,7 +599,46 @@ describe('CategorizeWrapper - Navigation', () => {
       // Press Delete key
       await user.keyboard('{Delete}')
 
-      // Should move to second bookmark
+      // Should show second bookmark
+      await waitFor(() => {
+        expect(screen.getByTestId('link-card')).toHaveTextContent('GitHub Repo')
+      })
+    })
+
+    it('calls skip API when Delete is pressed', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+        />
+      )
+
+      // Press Delete key
+      await user.keyboard('{Delete}')
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/bookmarks/skip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookmarkId: 'b1' }),
+        })
+      })
+    })
+
+    it('skips bookmark when Backspace is pressed', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+        />
+      )
+
+      // Press Backspace key
+      await user.keyboard('{Backspace}')
+
+      // Should advance to second bookmark
       await waitFor(() => {
         expect(screen.getByTestId('link-card')).toHaveTextContent('GitHub Repo')
       })
@@ -413,13 +646,10 @@ describe('CategorizeWrapper - Navigation', () => {
 
     it('shows red flash animation when skipping', async () => {
       const user = userEvent.setup()
-      const onSkip = vi.fn()
       render(
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
-          onSkip={onSkip}
         />
       )
 
@@ -432,52 +662,45 @@ describe('CategorizeWrapper - Navigation', () => {
       })
     })
 
-    it('clears selected categories when skipping', async () => {
+    it('increments skipped count in session stats', async () => {
       const user = userEvent.setup()
-      const onSkip = vi.fn()
       render(
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
-          onSkip={onSkip}
         />
       )
-
-      // Select a category first
-      await user.click(screen.getByTestId('select-category'))
-      expect(screen.getByTestId('selected-pairs')).toHaveTextContent('UI')
 
       // Press Delete key
       await user.keyboard('{Delete}')
 
-      // Selected pairs should be cleared
+      // Should show skipped count of 1
       await waitFor(() => {
-        expect(screen.getByTestId('selected-pairs')).toHaveTextContent('[]')
+        expect(screen.getByText(/1/)).toBeInTheDocument()
+        expect(screen.getByText(/skipped/)).toBeInTheDocument()
       })
     })
 
-    it('shows completion state when skipping last bookmark', async () => {
+    it('shows error when skip API fails', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 500, json: () => Promise.resolve({ error: 'Server error' }) })
       const user = userEvent.setup()
-      const onSkip = vi.fn()
-      const singleBookmark = [mockBookmarks[0]]
-
       render(
         <CategorizeWrapper
           categories={mockCategories}
-          bookmarks={singleBookmark}
-          initialIndex={0}
-          onSkip={onSkip}
+          bookmarks={mockBookmarks}
         />
       )
 
       // Press Delete key
       await user.keyboard('{Delete}')
 
-      // Should show completion state
+      // Should show error message
       await waitFor(() => {
-        expect(screen.getByText(/all bookmarks categorized/i)).toBeInTheDocument()
+        expect(screen.getByText('Server error')).toBeInTheDocument()
       })
+
+      // Should NOT advance
+      expect(screen.getByTestId('tweet-preview')).toHaveTextContent('https://twitter.com/user/status/123')
     })
   })
 
@@ -488,7 +711,6 @@ describe('CategorizeWrapper - Navigation', () => {
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
         />
       )
 
@@ -510,7 +732,6 @@ describe('CategorizeWrapper - Navigation', () => {
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
         />
       )
 
@@ -533,7 +754,6 @@ describe('CategorizeWrapper - Navigation', () => {
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
         />
       )
 
@@ -552,7 +772,6 @@ describe('CategorizeWrapper - Navigation', () => {
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
         />
       )
 
@@ -572,135 +791,17 @@ describe('CategorizeWrapper - Navigation', () => {
       })
     })
 
-    it('hides notes field when onClose is called', async () => {
-      const user = userEvent.setup()
-      render(
-        <CategorizeWrapper
-          categories={mockCategories}
-          bookmarks={mockBookmarks}
-          initialIndex={0}
-        />
-      )
-
-      // Press N key to show notes
-      await user.keyboard('n')
-      await waitFor(() => {
-        expect(screen.getByTestId('notes-field')).toBeInTheDocument()
-      })
-
-      // Click close button (simulates Escape in real component)
-      await user.click(screen.getByTestId('close-notes'))
-
-      // Notes field should be hidden
-      await waitFor(() => {
-        expect(screen.queryByTestId('notes-field')).not.toBeInTheDocument()
-      })
-    })
-
     it('shows notes hint in UI', () => {
       render(
         <CategorizeWrapper
           categories={mockCategories}
           bookmarks={mockBookmarks}
-          initialIndex={0}
         />
       )
 
       // Should show N key hint
       expect(screen.getByText('N')).toBeInTheDocument()
       expect(screen.getByText(/notes/i)).toBeInTheDocument()
-    })
-  })
-
-  describe('Queue management', () => {
-    it('removes bookmark from queue after categorizing', async () => {
-      const user = userEvent.setup()
-      render(
-        <CategorizeWrapper
-          categories={mockCategories}
-          bookmarks={mockBookmarks}
-          initialIndex={0}
-        />
-      )
-
-      // Should show first bookmark initially
-      expect(screen.getByTestId('tweet-preview')).toHaveTextContent('https://twitter.com/user/status/123')
-
-      // Select a category
-      await user.click(screen.getByTestId('select-category'))
-
-      // Press right arrow to categorize
-      await user.keyboard('{ArrowRight}')
-
-      // Should now show second bookmark (first one was removed from queue)
-      await waitFor(() => {
-        expect(screen.getByTestId('link-card')).toHaveTextContent('GitHub Repo')
-      })
-    })
-
-    it('removes bookmark from queue after skipping', async () => {
-      const user = userEvent.setup()
-      render(
-        <CategorizeWrapper
-          categories={mockCategories}
-          bookmarks={mockBookmarks}
-          initialIndex={0}
-        />
-      )
-
-      // Should show first bookmark initially
-      expect(screen.getByTestId('tweet-preview')).toHaveTextContent('https://twitter.com/user/status/123')
-
-      // Press Delete key to skip
-      await user.keyboard('{Delete}')
-
-      // Should now show second bookmark (first one was removed from queue)
-      await waitFor(() => {
-        expect(screen.getByTestId('link-card')).toHaveTextContent('GitHub Repo')
-      })
-    })
-
-    it('shows completion when last bookmark is categorized', async () => {
-      const user = userEvent.setup()
-      const singleBookmark = [mockBookmarks[0]]
-
-      render(
-        <CategorizeWrapper
-          categories={mockCategories}
-          bookmarks={singleBookmark}
-          initialIndex={0}
-        />
-      )
-
-      // Select category and move forward
-      await user.click(screen.getByTestId('select-category'))
-      await user.keyboard('{ArrowRight}')
-
-      // Should show completion message
-      await waitFor(() => {
-        expect(screen.getByText(/All bookmarks categorized/i)).toBeInTheDocument()
-      })
-    })
-
-    it('shows completion when last bookmark is skipped', async () => {
-      const user = userEvent.setup()
-      const singleBookmark = [mockBookmarks[0]]
-
-      render(
-        <CategorizeWrapper
-          categories={mockCategories}
-          bookmarks={singleBookmark}
-          initialIndex={0}
-        />
-      )
-
-      // Press Delete to skip
-      await user.keyboard('{Delete}')
-
-      // Should show completion message
-      await waitFor(() => {
-        expect(screen.getByText(/All bookmarks categorized/i)).toBeInTheDocument()
-      })
     })
   })
 })

@@ -6,27 +6,21 @@ vi.mock('@/components/categorize/categorize-wrapper', () => ({
   CategorizeWrapper: ({
     categories,
     bookmarks,
-    initialIndex,
   }: {
     categories: any[]
     bookmarks: any[]
-    initialIndex: number
   }) => (
     <div data-testid="categorize-wrapper">
       <div data-testid="bookmark-count">{bookmarks.length}</div>
       <div data-testid="category-count">{categories.length}</div>
-      <div data-testid="initial-index">{initialIndex}</div>
       {bookmarks.length > 0 && (
-        <div data-testid="current-bookmark">
-          {bookmarks[initialIndex]?.title} - {bookmarks[initialIndex]?.url}
+        <div data-testid="first-bookmark">
+          {bookmarks[0]?.title} - {bookmarks[0]?.url}
         </div>
       )}
     </div>
   ),
 }))
-
-// Track saved position value for tests
-let mockSavedPosition: { index: number } | null = null
 
 // Track bookmark pagination calls to simulate pagination behavior
 let bookmarkRangeCallCount = 0
@@ -49,10 +43,6 @@ const createMockBuilder = (tableName: string) => {
     eq: vi.fn(() => builder),
     is: vi.fn(() => builder),
     not: vi.fn(() => builder),
-    single: vi.fn(() => ({
-      data: tableName === 'settings' && mockSavedPosition ? { value: mockSavedPosition } : null,
-      error: tableName === 'settings' && !mockSavedPosition ? { code: 'PGRST116' } : null,
-    })),
     order: vi.fn(() => builder),
     range: vi.fn(() => {
       // For bookmarks, return data on first call, empty on second (to stop pagination)
@@ -100,7 +90,6 @@ vi.mock('next/navigation', () => ({
 describe('CategorizePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSavedPosition = null // Reset saved position for each test
     bookmarkRangeCallCount = 0 // Reset pagination counter
   })
 
@@ -123,29 +112,6 @@ describe('CategorizePage', () => {
 
     // Categories include both main and subcategories now
     expect(screen.getByTestId('category-count')).toHaveTextContent('3')
-  })
-
-  it('passes initialIndex of 0 to CategorizeWrapper when no position saved', async () => {
-    mockSavedPosition = null
-    render(await CategorizePage())
-
-    expect(screen.getByTestId('initial-index')).toHaveTextContent('0')
-  })
-
-  it('passes saved position as initialIndex to CategorizeWrapper', async () => {
-    mockSavedPosition = { index: 1 }
-    render(await CategorizePage())
-
-    expect(screen.getByTestId('initial-index')).toHaveTextContent('1')
-  })
-
-  it('clamps saved position to valid range', async () => {
-    // Saved position is 10 but only 2 bookmarks exist
-    mockSavedPosition = { index: 10 }
-    render(await CategorizePage())
-
-    // Should be clamped to max valid index (1)
-    expect(screen.getByTestId('initial-index')).toHaveTextContent('1')
   })
 
   it('has correct layout structure with main element', async () => {

@@ -19,8 +19,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 1. Insert bookmark_categories junction records
-    const junctionRecords = categoryIds.map((categoryId: string) => ({
+    // 1. Delete existing bookmark_categories for this bookmark (idempotent for re-categorization)
+    const { error: deleteError } = await supabase
+      .from('bookmark_categories')
+      .delete()
+      .eq('bookmark_id', bookmarkId)
+
+    if (deleteError) {
+      console.error('Failed to delete existing bookmark_categories:', deleteError)
+      return NextResponse.json(
+        { error: 'Failed to clear existing categories' },
+        { status: 500 }
+      )
+    }
+
+    // 2. Insert new bookmark_categories junction records (dedupe in case same main category used twice)
+    const uniqueCategoryIds = [...new Set(categoryIds as string[])]
+    const junctionRecords = uniqueCategoryIds.map((categoryId: string) => ({
       bookmark_id: bookmarkId,
       category_id: categoryId,
     }))
@@ -37,7 +52,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 2. Mark bookmark as categorized and clear is_skipped flag
+    // 3. Mark bookmark as categorized and clear is_skipped flag
     const { error: updateError } = await supabase
       .from('bookmarks')
       .update({
@@ -54,9 +69,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 3. Increment usage_count on selected categories
+    // 4. Increment usage_count on selected categories
     const { error: rpcError } = await supabase.rpc('increment_usage_counts', {
-      category_ids: categoryIds,
+      category_ids: uniqueCategoryIds,
     })
 
     if (rpcError) {

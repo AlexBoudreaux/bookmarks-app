@@ -6,6 +6,8 @@ vi.mock('@/lib/supabase', () => {
   const mockEq = vi.fn()
   const mockInsert = vi.fn()
   const mockRpc = vi.fn()
+  const mockDelete = vi.fn()
+  const mockDeleteEq = vi.fn()
 
   return {
     supabase: {
@@ -20,6 +22,9 @@ vi.mock('@/lib/supabase', () => {
         if (table === 'bookmark_categories') {
           return {
             insert: mockInsert,
+            delete: mockDelete.mockReturnValue({
+              eq: mockDeleteEq,
+            }),
           }
         }
         return {}
@@ -30,6 +35,8 @@ vi.mock('@/lib/supabase', () => {
     __mockEq: mockEq,
     __mockInsert: mockInsert,
     __mockRpc: mockRpc,
+    __mockDelete: mockDelete,
+    __mockDeleteEq: mockDeleteEq,
   }
 })
 
@@ -66,8 +73,9 @@ describe('POST /api/bookmarks/categorize', () => {
     expect(data.error).toBe('categoryIds must be a non-empty array')
   })
 
-  it('saves bookmark_categories junction records', async () => {
-    const { __mockInsert, __mockEq, __mockRpc } = await import('@/lib/supabase') as any
+  it('deletes existing categories then inserts new ones (idempotent)', async () => {
+    const { __mockInsert, __mockEq, __mockRpc, __mockDeleteEq } = await import('@/lib/supabase') as any
+    __mockDeleteEq.mockReturnValue({ error: null })
     __mockInsert.mockReturnValue({ error: null })
     __mockEq.mockReturnValue({ error: null })
     __mockRpc.mockResolvedValue({ error: null })
@@ -86,6 +94,9 @@ describe('POST /api/bookmarks/categorize', () => {
 
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
+    // Verify delete was called first
+    expect(__mockDeleteEq).toHaveBeenCalledWith('bookmark_id', 'bookmark-1')
+    // Then insert
     expect(__mockInsert).toHaveBeenCalledWith([
       { bookmark_id: 'bookmark-1', category_id: 'cat-1' },
       { bookmark_id: 'bookmark-1', category_id: 'cat-2' },
@@ -93,7 +104,8 @@ describe('POST /api/bookmarks/categorize', () => {
   })
 
   it('sets is_categorized=true on bookmark', async () => {
-    const { supabase, __mockInsert, __mockEq, __mockRpc } = await import('@/lib/supabase') as any
+    const { supabase, __mockInsert, __mockEq, __mockRpc, __mockDeleteEq } = await import('@/lib/supabase') as any
+    __mockDeleteEq.mockReturnValue({ error: null })
     __mockInsert.mockReturnValue({ error: null })
     __mockEq.mockReturnValue({ error: null })
     __mockRpc.mockResolvedValue({ error: null })
@@ -115,7 +127,8 @@ describe('POST /api/bookmarks/categorize', () => {
   })
 
   it('increments usage_count on selected categories via RPC', async () => {
-    const { supabase, __mockInsert, __mockEq, __mockRpc } = await import('@/lib/supabase') as any
+    const { supabase, __mockInsert, __mockEq, __mockRpc, __mockDeleteEq } = await import('@/lib/supabase') as any
+    __mockDeleteEq.mockReturnValue({ error: null })
     __mockInsert.mockReturnValue({ error: null })
     __mockEq.mockReturnValue({ error: null })
     __mockRpc.mockResolvedValue({ error: null })
@@ -137,11 +150,30 @@ describe('POST /api/bookmarks/categorize', () => {
     })
   })
 
+  it('returns 500 if delete fails', async () => {
+    const { __mockDeleteEq } = await import('@/lib/supabase') as any
+    __mockDeleteEq.mockReturnValue({ error: { message: 'Database error' } })
+
+    const { POST } = await import('./route')
+    const request = new Request('http://localhost/api/bookmarks/categorize', {
+      method: 'POST',
+      body: JSON.stringify({
+        bookmarkId: 'bookmark-1',
+        categoryIds: ['cat-1'],
+      }),
+    })
+
+    const response = await POST(request as any)
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Failed to clear existing categories')
+  })
+
   it('returns 500 if bookmark_categories insert fails', async () => {
-    const { __mockInsert, __mockEq, __mockRpc } = await import('@/lib/supabase') as any
+    const { __mockInsert, __mockDeleteEq } = await import('@/lib/supabase') as any
+    __mockDeleteEq.mockReturnValue({ error: null })
     __mockInsert.mockReturnValue({ error: { message: 'Database error' } })
-    __mockEq.mockReturnValue({ error: null })
-    __mockRpc.mockResolvedValue({ error: null })
 
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/bookmarks/categorize', {
@@ -160,10 +192,10 @@ describe('POST /api/bookmarks/categorize', () => {
   })
 
   it('returns 500 if bookmark update fails', async () => {
-    const { __mockInsert, __mockEq, __mockRpc } = await import('@/lib/supabase') as any
+    const { __mockInsert, __mockEq, __mockDeleteEq } = await import('@/lib/supabase') as any
+    __mockDeleteEq.mockReturnValue({ error: null })
     __mockInsert.mockReturnValue({ error: null })
     __mockEq.mockReturnValue({ error: { message: 'Database error' } })
-    __mockRpc.mockResolvedValue({ error: null })
 
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/bookmarks/categorize', {
@@ -182,7 +214,8 @@ describe('POST /api/bookmarks/categorize', () => {
   })
 
   it('handles multiple category pairs (main + sub for each)', async () => {
-    const { __mockInsert, __mockEq, __mockRpc } = await import('@/lib/supabase') as any
+    const { __mockInsert, __mockEq, __mockRpc, __mockDeleteEq } = await import('@/lib/supabase') as any
+    __mockDeleteEq.mockReturnValue({ error: null })
     __mockInsert.mockReturnValue({ error: null })
     __mockEq.mockReturnValue({ error: null })
     __mockRpc.mockResolvedValue({ error: null })
@@ -211,8 +244,40 @@ describe('POST /api/bookmarks/categorize', () => {
     ])
   })
 
+  it('dedupes category IDs when same main category used twice', async () => {
+    const { __mockInsert, __mockEq, __mockRpc, __mockDeleteEq } = await import('@/lib/supabase') as any
+    __mockDeleteEq.mockReturnValue({ error: null })
+    __mockInsert.mockReturnValue({ error: null })
+    __mockEq.mockReturnValue({ error: null })
+    __mockRpc.mockResolvedValue({ error: null })
+
+    const { POST } = await import('./route')
+    // Simulate 2 category pairs with same main: AI > Prompts, AI > Tools
+    // categoryIds would be [ai-id, prompts-id, ai-id, tools-id] - note ai-id appears twice
+    const request = new Request('http://localhost/api/bookmarks/categorize', {
+      method: 'POST',
+      body: JSON.stringify({
+        bookmarkId: 'bookmark-1',
+        categoryIds: ['ai-id', 'prompts-id', 'ai-id', 'tools-id'],
+      }),
+    })
+
+    const response = await POST(request as any)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.success).toBe(true)
+    // Should dedupe to only 3 unique category IDs
+    expect(__mockInsert).toHaveBeenCalledWith([
+      { bookmark_id: 'bookmark-1', category_id: 'ai-id' },
+      { bookmark_id: 'bookmark-1', category_id: 'prompts-id' },
+      { bookmark_id: 'bookmark-1', category_id: 'tools-id' },
+    ])
+  })
+
   it('clears is_skipped flag when categorizing', async () => {
-    const { __mockUpdate, __mockInsert, __mockEq, __mockRpc } = await import('@/lib/supabase') as any
+    const { __mockUpdate, __mockInsert, __mockEq, __mockRpc, __mockDeleteEq } = await import('@/lib/supabase') as any
+    __mockDeleteEq.mockReturnValue({ error: null })
     __mockInsert.mockReturnValue({ error: null })
     __mockEq.mockReturnValue({ error: null })
     __mockRpc.mockResolvedValue({ error: null })

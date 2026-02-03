@@ -115,10 +115,34 @@ export function CategoryPicker({
     setState('main')
   }
 
+  // Go back from subcategory to main category selection
+  const handleGoBackToMain = () => {
+    setSelectedMain(null)
+    setState(selectedPairs.length > 0 ? 'ready' : 'main')
+    setHighlightedIndex(null)
+  }
+
+  // Remove a selected pair
+  const handleRemovePair = (index: number) => {
+    const newPairs = selectedPairs.filter((_, i) => i !== index)
+    setSelectedPairs(newPairs)
+    // If we removed the last pair and we're in ready state, go back to main
+    if (newPairs.length === 0 && state === 'ready') {
+      setState('main')
+    }
+  }
+
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       // Don't handle if typing in an input or modal is open
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
+      // Handle Escape to go back from subcategory to main
+      if (e.key === 'Escape' && state === 'subcategory') {
+        e.preventDefault()
+        handleGoBackToMain()
         return
       }
 
@@ -176,9 +200,18 @@ export function CategoryPicker({
             {selectedPairs.map((pair, index) => (
               <div
                 key={index}
-                className="px-2 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded text-xs text-emerald-400"
+                className="flex items-center gap-1 px-2 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded text-xs text-emerald-400"
               >
-                {pair.main.name} &gt; {pair.sub.name}
+                <span>{pair.main.name} &gt; {pair.sub.name}</span>
+                <button
+                  onClick={() => handleRemovePair(index)}
+                  className="ml-0.5 p-0.5 hover:bg-emerald-500/20 rounded transition-colors"
+                  aria-label={`Remove ${pair.main.name} > ${pair.sub.name}`}
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
             ))}
           </div>
@@ -199,7 +232,12 @@ export function CategoryPicker({
             <h3 className="text-base font-medium text-zinc-300 mb-1">
               <span className="text-emerald-400">{selectedMain.name}</span> → Subcategory
             </h3>
-            <p className="text-xs text-zinc-500">Press 1-9 or 0</p>
+            <p className="text-xs text-zinc-500">
+              Press 1-9 or 0
+              <span className="mx-1.5 text-zinc-600">·</span>
+              <kbd className="px-1 py-0.5 bg-zinc-800/50 border border-zinc-700/50 rounded text-[10px] font-mono">Esc</kbd>
+              <span className="ml-1">to go back</span>
+            </p>
           </>
         )}
       </div>
@@ -304,6 +342,10 @@ export function CategoryPicker({
       {/* Keyboard hints */}
       <div className="mt-auto pt-3 border-t border-zinc-800/50">
         <div className="flex items-center justify-center gap-4 text-xs text-zinc-500">
+          <div className="flex items-center gap-1">
+            <kbd className="px-1.5 py-0.5 bg-zinc-800/50 border border-zinc-700/50 rounded text-[10px] font-mono">←</kbd>
+            <span>Back</span>
+          </div>
           <div className="flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 bg-zinc-800/50 border border-zinc-700/50 rounded text-[10px] font-mono">Del</kbd>
             <span>Skip</span>
