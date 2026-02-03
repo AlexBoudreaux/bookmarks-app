@@ -388,4 +388,258 @@ describe('CategoryPicker', () => {
       }))
     })
   })
+
+  describe('Subcategory pagination', () => {
+    // Create 15 subcategories for UI category to test pagination
+    const mockCategoriesWithManySubs = [
+      { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
+      { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
+      // 15 subcategories under UI, sorted by usage_count descending
+      { id: 'sub1', name: 'Sub 1', parent_id: '1', usage_count: 150, sort_order: 0, created_at: '2024-01-01' },
+      { id: 'sub2', name: 'Sub 2', parent_id: '1', usage_count: 140, sort_order: 1, created_at: '2024-01-01' },
+      { id: 'sub3', name: 'Sub 3', parent_id: '1', usage_count: 130, sort_order: 2, created_at: '2024-01-01' },
+      { id: 'sub4', name: 'Sub 4', parent_id: '1', usage_count: 120, sort_order: 3, created_at: '2024-01-01' },
+      { id: 'sub5', name: 'Sub 5', parent_id: '1', usage_count: 110, sort_order: 4, created_at: '2024-01-01' },
+      { id: 'sub6', name: 'Sub 6', parent_id: '1', usage_count: 100, sort_order: 5, created_at: '2024-01-01' },
+      { id: 'sub7', name: 'Sub 7', parent_id: '1', usage_count: 90, sort_order: 6, created_at: '2024-01-01' },
+      { id: 'sub8', name: 'Sub 8', parent_id: '1', usage_count: 80, sort_order: 7, created_at: '2024-01-01' },
+      { id: 'sub9', name: 'Sub 9', parent_id: '1', usage_count: 70, sort_order: 8, created_at: '2024-01-01' },
+      { id: 'sub10', name: 'Sub 10', parent_id: '1', usage_count: 60, sort_order: 9, created_at: '2024-01-01' },
+      { id: 'sub11', name: 'Sub 11', parent_id: '1', usage_count: 50, sort_order: 10, created_at: '2024-01-01' },
+      { id: 'sub12', name: 'Sub 12', parent_id: '1', usage_count: 40, sort_order: 11, created_at: '2024-01-01' },
+      { id: 'sub13', name: 'Sub 13', parent_id: '1', usage_count: 30, sort_order: 12, created_at: '2024-01-01' },
+      { id: 'sub14', name: 'Sub 14', parent_id: '1', usage_count: 20, sort_order: 13, created_at: '2024-01-01' },
+      { id: 'sub15', name: 'Sub 15', parent_id: '1', usage_count: 10, sort_order: 14, created_at: '2024-01-01' },
+    ]
+
+    it('shows first 10 subcategories by default', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockCategoriesWithManySubs} onSelect={vi.fn()} />)
+
+      // Select UI category
+      await user.keyboard('1')
+
+      // Wait for subcategory view
+      await waitFor(() => {
+        expect(screen.getByText('Sub 1')).toBeInTheDocument()
+      })
+
+      // Should show Sub 1-10
+      for (let i = 1; i <= 10; i++) {
+        expect(screen.getByText(`Sub ${i}`)).toBeInTheDocument()
+      }
+
+      // Should NOT show Sub 11-15 on first page
+      expect(screen.queryByText('Sub 11')).not.toBeInTheDocument()
+      expect(screen.queryByText('Sub 15')).not.toBeInTheDocument()
+    })
+
+    it('shows More button with page indicator when more than 10 subcategories exist', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockCategoriesWithManySubs} onSelect={vi.fn()} />)
+
+      // Select UI category
+      await user.keyboard('1')
+
+      // Wait for subcategory view
+      await waitFor(() => {
+        expect(screen.getByText('Sub 1')).toBeInTheDocument()
+      })
+
+      // Should show More button with = key hint
+      expect(screen.getByRole('button', { name: /More.*Press =/ })).toBeInTheDocument()
+    })
+
+    it('does not show More button when 10 or fewer subcategories exist', async () => {
+      const user = userEvent.setup()
+      const mockCategoriesWithFewSubs = [
+        { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
+        { id: 'sub1', name: 'Sub 1', parent_id: '1', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
+        { id: 'sub2', name: 'Sub 2', parent_id: '1', usage_count: 40, sort_order: 1, created_at: '2024-01-01' },
+      ]
+
+      render(<CategoryPicker categories={mockCategoriesWithFewSubs} onSelect={vi.fn()} />)
+
+      // Select UI category
+      await user.keyboard('1')
+
+      // Wait for subcategory view
+      await waitFor(() => {
+        expect(screen.getByText('Sub 1')).toBeInTheDocument()
+      })
+
+      // Should NOT show More button
+      expect(screen.queryByRole('button', { name: /More.*Press =/ })).not.toBeInTheDocument()
+    })
+
+    it('shows page 2 subcategories when = key is pressed', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockCategoriesWithManySubs} onSelect={vi.fn()} />)
+
+      // Select UI category
+      await user.keyboard('1')
+
+      // Wait for subcategory view
+      await waitFor(() => {
+        expect(screen.getByText('Sub 1')).toBeInTheDocument()
+      })
+
+      // Press = to go to page 2
+      await user.keyboard('=')
+
+      // Should show Sub 11-15 on page 2
+      await waitFor(() => {
+        expect(screen.getByText('Sub 11')).toBeInTheDocument()
+      })
+      expect(screen.getByText('Sub 12')).toBeInTheDocument()
+      expect(screen.getByText('Sub 15')).toBeInTheDocument()
+
+      // Should NOT show Sub 1-10 on page 2
+      expect(screen.queryByText('Sub 1')).not.toBeInTheDocument()
+      expect(screen.queryByText('Sub 10')).not.toBeInTheDocument()
+    })
+
+    it('shows page indicator "More (2/2)" on page 2', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockCategoriesWithManySubs} onSelect={vi.fn()} />)
+
+      // Select UI category
+      await user.keyboard('1')
+
+      // Wait for subcategory view
+      await waitFor(() => {
+        expect(screen.getByText('Sub 1')).toBeInTheDocument()
+      })
+
+      // Press = to go to page 2
+      await user.keyboard('=')
+
+      // Should show page indicator
+      await waitFor(() => {
+        expect(screen.getByText(/More \(2\/2\)/)).toBeInTheDocument()
+      })
+    })
+
+    it('cycles back to page 1 when pressing = on last page', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockCategoriesWithManySubs} onSelect={vi.fn()} />)
+
+      // Select UI category
+      await user.keyboard('1')
+
+      // Wait for subcategory view
+      await waitFor(() => {
+        expect(screen.getByText('Sub 1')).toBeInTheDocument()
+      })
+
+      // Press = to go to page 2
+      await user.keyboard('=')
+
+      await waitFor(() => {
+        expect(screen.getByText('Sub 11')).toBeInTheDocument()
+      })
+
+      // Press = again to cycle back to page 1
+      await user.keyboard('=')
+
+      await waitFor(() => {
+        expect(screen.getByText('Sub 1')).toBeInTheDocument()
+      })
+      expect(screen.queryByText('Sub 11')).not.toBeInTheDocument()
+    })
+
+    it('resets to page 1 when selecting a different main category', async () => {
+      const user = userEvent.setup()
+      // Add subcategories under AI Dev too
+      const categoriesWithMultipleMains = [
+        ...mockCategoriesWithManySubs,
+        { id: 'ai-sub1', name: 'AI Sub 1', parent_id: '2', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
+      ]
+
+      render(<CategoryPicker categories={categoriesWithMultipleMains} onSelect={vi.fn()} />)
+
+      // Select UI category
+      await user.keyboard('1')
+
+      await waitFor(() => {
+        expect(screen.getByText('Sub 1')).toBeInTheDocument()
+      })
+
+      // Go to page 2
+      await user.keyboard('=')
+
+      await waitFor(() => {
+        expect(screen.getByText('Sub 11')).toBeInTheDocument()
+      })
+
+      // Go back to main (Escape)
+      await user.keyboard('{Escape}')
+
+      // Select AI Dev (key 2)
+      await user.keyboard('2')
+
+      await waitFor(() => {
+        expect(screen.getByText('AI Sub 1')).toBeInTheDocument()
+      })
+
+      // Go back and select UI again
+      await user.keyboard('{Escape}')
+      await user.keyboard('1')
+
+      // Should be on page 1 again
+      await waitFor(() => {
+        expect(screen.getByText('Sub 1')).toBeInTheDocument()
+      })
+      expect(screen.queryByText('Sub 11')).not.toBeInTheDocument()
+    })
+
+    it('allows selecting subcategory from page 2 with keyboard shortcut', async () => {
+      const user = userEvent.setup()
+      const onSelect = vi.fn()
+      render(<CategoryPicker categories={mockCategoriesWithManySubs} onSelect={onSelect} />)
+
+      // Select UI category
+      await user.keyboard('1')
+
+      await waitFor(() => {
+        expect(screen.getByText('Sub 1')).toBeInTheDocument()
+      })
+
+      // Go to page 2
+      await user.keyboard('=')
+
+      await waitFor(() => {
+        expect(screen.getByText('Sub 11')).toBeInTheDocument()
+      })
+
+      // Press 1 to select Sub 11 (first on page 2)
+      await user.keyboard('1')
+
+      // Should have selected Sub 11
+      await waitFor(() => {
+        expect(screen.getByText(/UI > Sub 11/)).toBeInTheDocument()
+      })
+    })
+
+    it('clicking More button goes to next page', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockCategoriesWithManySubs} onSelect={vi.fn()} />)
+
+      // Select UI category
+      await user.keyboard('1')
+
+      await waitFor(() => {
+        expect(screen.getByText('Sub 1')).toBeInTheDocument()
+      })
+
+      // Click More button
+      const moreButton = screen.getByRole('button', { name: /More.*Press =/ })
+      await user.click(moreButton)
+
+      // Should show page 2
+      await waitFor(() => {
+        expect(screen.getByText('Sub 11')).toBeInTheDocument()
+      })
+    })
+  })
 })

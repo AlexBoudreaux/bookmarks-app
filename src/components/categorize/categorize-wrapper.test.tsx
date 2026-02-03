@@ -7,23 +7,27 @@ import { CategorizeWrapper } from './categorize-wrapper'
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
-// Mock CategoryPicker to expose selected pairs state
+// Mock CategoryPicker to expose selected pairs state and onCategoryCreated
 vi.mock('./category-picker', () => ({
   CategoryPicker: ({
     categories,
     onSelect,
     selectedPairs = [],
     onSelectedPairsChange,
-    isShaking
+    isShaking,
+    onCategoryCreated,
   }: {
     categories: any[]
     onSelect: (cat: any) => void
     selectedPairs?: any[]
     onSelectedPairsChange?: (pairs: any[]) => void
     isShaking?: boolean
+    onCategoryCreated?: (cat: any) => void
   }) => (
     <div data-testid="category-picker" data-is-shaking={isShaking}>
       <div data-testid="selected-pairs">{JSON.stringify(selectedPairs)}</div>
+      <div data-testid="categories-count">{categories.length}</div>
+      <div data-testid="categories-list">{categories.map((c: any) => c.name).join(',')}</div>
       <button
         data-testid="select-category"
         onClick={() => {
@@ -41,6 +45,21 @@ vi.mock('./category-picker', () => ({
         onClick={() => onSelectedPairsChange?.([])}
       >
         Clear
+      </button>
+      <button
+        data-testid="create-new-category"
+        onClick={() => {
+          onCategoryCreated?.({
+            id: 'new-cat-id',
+            name: 'New Test Category',
+            parent_id: '1',
+            usage_count: 0,
+            sort_order: 0,
+            created_at: '2024-01-01',
+          })
+        }}
+      >
+        Create Category
       </button>
     </div>
   ),
@@ -701,6 +720,30 @@ describe('CategorizeWrapper - Position-based Navigation', () => {
 
       // Should NOT advance
       expect(screen.getByTestId('tweet-preview')).toHaveTextContent('https://twitter.com/user/status/123')
+    })
+  })
+
+  describe('Category creation', () => {
+    it('adds newly created category to the categories list', async () => {
+      const user = userEvent.setup()
+      render(
+        <CategorizeWrapper
+          categories={mockCategories}
+          bookmarks={mockBookmarks}
+        />
+      )
+
+      // Initial categories count
+      expect(screen.getByTestId('categories-count')).toHaveTextContent('4')
+
+      // Create a new category (simulated via mock)
+      await user.click(screen.getByTestId('create-new-category'))
+
+      // Categories should now include the new one
+      await waitFor(() => {
+        expect(screen.getByTestId('categories-count')).toHaveTextContent('5')
+      })
+      expect(screen.getByTestId('categories-list')).toHaveTextContent('New Test Category')
     })
   })
 

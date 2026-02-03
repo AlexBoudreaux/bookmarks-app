@@ -27,9 +27,12 @@ interface CategorizeWrapperProps {
 }
 
 export function CategorizeWrapper({
-  categories,
+  categories: initialCategories,
   bookmarks,
 }: CategorizeWrapperProps) {
+  // Local categories state that can be updated when new categories are created
+  const [categories, setCategories] = useState<Category[]>(initialCategories)
+
   // Position-based navigation (bookmarks array stays immutable)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selectedPairs, setSelectedPairs] = useState<CategoryPair[]>([])
@@ -64,9 +67,14 @@ export function CategorizeWrapper({
     setSelectedPairs(pairs)
   }, [])
 
+  // Handle new category creation - add to local state
+  const handleCategoryCreated = useCallback((newCategory: Category) => {
+    setCategories(prev => [...prev, newCategory])
+  }, [])
+
   // Pre-populate categories when navigating to a processed item
   useEffect(() => {
-    if (currentSessionState?.categoryPairs.length > 0) {
+    if (currentSessionState?.categoryPairs && currentSessionState.categoryPairs.length > 0) {
       setSelectedPairs(currentSessionState.categoryPairs)
     } else {
       // Clear for unprocessed items OR skipped items (which have no categories)
@@ -382,6 +390,7 @@ export function CategorizeWrapper({
             selectedPairs={selectedPairs}
             onSelectedPairsChange={handleSelectedPairsChange}
             isShaking={isShaking}
+            onCategoryCreated={handleCategoryCreated}
           />
 
           {/* Notes hint */}

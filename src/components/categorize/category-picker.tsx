@@ -36,6 +36,7 @@ export function CategoryPicker({
   const [isAnimating, setIsAnimating] = useState(false)
   const [selectedMainIndex, setSelectedMainIndex] = useState<number | null>(null)
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null)
+  const [subcategoryPage, setSubcategoryPage] = useState(0)
 
   // Use controlled pairs if provided, otherwise manage internally
   const [internalPairs, setInternalPairs] = useState<CategoryPair[]>([])
@@ -74,19 +75,26 @@ export function CategoryPicker({
     .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
     .slice(0, 10)
 
-  // Get subcategories of selected main category
-  const subcategories = selectedMain
+  // Get all subcategories of selected main category (for pagination)
+  const allSubcategories = selectedMain
     ? categories
         .filter(c => c.parent_id === selectedMain.id)
         .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
-        .slice(0, 10)
     : []
+
+  // Calculate pagination
+  const totalSubcategoryPages = Math.ceil(allSubcategories.length / 10)
+  const hasMultiplePages = totalSubcategoryPages > 1
+
+  // Get subcategories for current page
+  const subcategories = allSubcategories.slice(subcategoryPage * 10, (subcategoryPage + 1) * 10)
 
   const handleMainCategorySelect = (category: Category, index?: number) => {
     // Highlight the selected button
     setHighlightedIndex(index ?? null)
     setSelectedMain(category)
     setSelectedMainIndex(index ?? null)
+    setSubcategoryPage(0) // Reset to first page when selecting new main category
     setIsAnimating(true)
     // Small delay for animation - shows highlight then transitions
     setTimeout(() => {
@@ -122,6 +130,13 @@ export function CategoryPicker({
     setHighlightedIndex(null)
   }
 
+  // Handle pagination for subcategories
+  const handleNextPage = () => {
+    if (hasMultiplePages) {
+      setSubcategoryPage((prev) => (prev + 1) % totalSubcategoryPages)
+    }
+  }
+
   // Remove a selected pair
   const handleRemovePair = (index: number) => {
     const newPairs = selectedPairs.filter((_, i) => i !== index)
@@ -150,6 +165,13 @@ export function CategoryPicker({
       if (e.key === '-' && (state === 'main' || state === 'subcategory')) {
         e.preventDefault()
         handleNewCategory()
+        return
+      }
+
+      // Handle = key for subcategory pagination
+      if (e.key === '=' && state === 'subcategory' && hasMultiplePages) {
+        e.preventDefault()
+        handleNextPage()
         return
       }
 
@@ -186,7 +208,7 @@ export function CategoryPicker({
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [state, mainCategories, subcategories, selectedMain, selectedPairs])
+  }, [state, mainCategories, subcategories, selectedMain, selectedPairs, hasMultiplePages, totalSubcategoryPages])
 
   const shakeClass = isShaking ? 'animate-shake' : ''
 
@@ -336,6 +358,24 @@ export function CategoryPicker({
               <span className="text-sm text-zinc-500">New...</span>
             </div>
           </button>
+
+          {/* More button for pagination - only show when there are multiple pages */}
+          {hasMultiplePages && (
+            <button
+              onClick={handleNextPage}
+              className="relative w-full h-12 bg-zinc-800/30 hover:bg-zinc-800/50 border border-zinc-700/50 hover:border-teal-500/50 rounded-lg px-3 transition-all duration-200"
+              aria-label={`More subcategories - Press =`}
+            >
+              <div className="flex items-center gap-2.5 h-full">
+                <span className="shrink-0 text-sm font-mono text-zinc-500 bg-zinc-800/50 border border-zinc-700/50 w-6 h-6 flex items-center justify-center rounded">
+                  =
+                </span>
+                <span className="text-sm text-zinc-500">
+                  More ({subcategoryPage + 1}/{totalSubcategoryPages})
+                </span>
+              </div>
+            </button>
+          )}
         </div>
       )}
 
