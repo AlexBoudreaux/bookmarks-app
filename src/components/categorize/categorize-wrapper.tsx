@@ -66,9 +66,10 @@ export function CategorizeWrapper({
 
   // Pre-populate categories when navigating to a processed item
   useEffect(() => {
-    if (currentSessionState && currentSessionState.categoryPairs.length > 0) {
+    if (currentSessionState?.categoryPairs.length > 0) {
       setSelectedPairs(currentSessionState.categoryPairs)
-    } else if (!currentSessionState) {
+    } else {
+      // Clear for unprocessed items OR skipped items (which have no categories)
       setSelectedPairs([])
     }
   }, [currentIndex, currentSessionState])
