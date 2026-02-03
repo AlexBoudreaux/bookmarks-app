@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Upload } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { CategorizeWrapper } from '@/components/categorize/categorize-wrapper'
 import { Database } from '@/types/database'
@@ -60,15 +61,21 @@ export default async function CategorizePage() {
         <div className="max-w-7xl mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
             <Link
-              href="/"
+              href="/browse"
               className="text-zinc-400 hover:text-zinc-100 transition-colors text-xs font-medium"
             >
-              ← Back
+              ← Browse
             </Link>
             <h1 className="text-xs font-medium text-zinc-200">
               Categorize
             </h1>
-            <div className="w-10" />
+            <Link
+              href="/import"
+              className="flex items-center gap-1.5 text-zinc-400 hover:text-zinc-100 transition-colors text-xs font-medium"
+            >
+              <Upload className="h-3 w-3" />
+              Import
+            </Link>
           </div>
         </div>
       </header>

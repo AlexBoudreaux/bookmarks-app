@@ -93,11 +93,12 @@ describe('CategorizePage', () => {
     bookmarkRangeCallCount = 0 // Reset pagination counter
   })
 
-  it('renders page header', async () => {
+  it('renders page header with navigation links', async () => {
     render(await CategorizePage())
 
-    expect(screen.getByText('← Back')).toBeInTheDocument()
+    expect(screen.getByText('← Browse')).toBeInTheDocument()
     expect(screen.getByText('Categorize')).toBeInTheDocument()
+    expect(screen.getByText('Import')).toBeInTheDocument()
   })
 
   it('passes bookmarks to CategorizeWrapper', async () => {
