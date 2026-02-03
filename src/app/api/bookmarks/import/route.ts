@@ -26,11 +26,36 @@ export async function POST(request: Request) {
       )
     }
 
-    // Transform parsed bookmarks to database format
-    const bookmarksMap = new Map<string, BookmarkInsert>()
-
+    // Deduplicate incoming bookmarks by URL
+    const bookmarksMap = new Map<string, ImportBookmark>()
     for (const bookmark of bookmarks as ImportBookmark[]) {
-      // Handle both Date objects and ISO strings (from JSON serialization)
+      bookmarksMap.set(bookmark.url, bookmark)
+    }
+    const incomingUrls = Array.from(bookmarksMap.keys())
+
+    // Check which URLs already exist in the database
+    const { data: existingBookmarks, error: fetchError } = await supabase
+      .from('bookmarks')
+      .select('url')
+      .in('url', incomingUrls)
+
+    if (fetchError) {
+      console.error('Supabase fetch error:', fetchError)
+      return NextResponse.json(
+        { error: 'Failed to check existing bookmarks', details: fetchError.message },
+        { status: 500 }
+      )
+    }
+
+    const existingUrls = new Set(existingBookmarks?.map(b => b.url) || [])
+
+    // Only insert bookmarks that don't already exist
+    const bookmarksToInsert: BookmarkInsert[] = []
+    for (const [url, bookmark] of bookmarksMap) {
+      if (existingUrls.has(url)) {
+        continue // Skip existing bookmarks to preserve categorization
+      }
+
       let addDateIso: string | null = null
       if (bookmark.addDate) {
         if (typeof bookmark.addDate === 'string') {
@@ -40,8 +65,7 @@ export async function POST(request: Request) {
         }
       }
 
-      // Deduplicate by URL (keep the last occurrence)
-      bookmarksMap.set(bookmark.url, {
+      bookmarksToInsert.push({
         url: bookmark.url,
         title: bookmark.title,
         add_date: addDateIso,
@@ -54,14 +78,19 @@ export async function POST(request: Request) {
       })
     }
 
-    const bookmarksToInsert = Array.from(bookmarksMap.values())
+    if (bookmarksToInsert.length === 0) {
+      return NextResponse.json({
+        success: true,
+        imported: 0,
+        skipped: existingUrls.size,
+        message: 'All bookmarks already exist in database',
+      })
+    }
 
-    // Upsert bookmarks (insert or update on conflict)
+    // Insert only new bookmarks
     const { data, error } = await supabase
       .from('bookmarks')
-      .upsert(bookmarksToInsert, {
-        onConflict: 'url',
-      })
+      .insert(bookmarksToInsert)
       .select()
 
     if (error) {
@@ -75,6 +104,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       imported: data?.length || 0,
+      skipped: existingUrls.size,
     })
   } catch (error) {
     console.error('Import error:', error)
