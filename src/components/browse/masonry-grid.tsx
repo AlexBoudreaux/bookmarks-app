@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useCallback, useMemo, ReactNode } from 'react'
+import { useRef, useMemo, ReactNode } from 'react'
 import { useMediaQuery } from '@/hooks/use-media-query'
 
 interface MasonryGridProps<T> {
@@ -36,8 +36,6 @@ export function MasonryGrid<T>({
 
   // Stable assignment map: item key -> column index
   const assignmentsRef = useRef<Map<string, number>>(new Map())
-  // Track column heights for placement decisions
-  const columnHeightsRef = useRef<number[]>([])
   // Track the last resetKey and columnCount to know when to clear assignments
   const prevResetKeyRef = useRef<string | number | undefined>(resetKey)
   const prevColumnCountRef = useRef<number>(columnCount)
@@ -45,64 +43,34 @@ export function MasonryGrid<T>({
   // Clear assignments when resetKey or columnCount changes
   if (resetKey !== prevResetKeyRef.current || columnCount !== prevColumnCountRef.current) {
     assignmentsRef.current = new Map()
-    columnHeightsRef.current = []
     prevResetKeyRef.current = resetKey
     prevColumnCountRef.current = columnCount
   }
 
-  // ResizeObserver callback to track actual column heights
-  const columnRefs = useRef<(HTMLDivElement | null)[]>([])
-  const observerRef = useRef<ResizeObserver | null>(null)
+  // Stable ref for getKey so useMemo doesn't depend on it
+  const getKeyRef = useRef(getKey)
+  getKeyRef.current = getKey
 
-  const setColumnRef = useCallback((index: number) => (el: HTMLDivElement | null) => {
-    columnRefs.current[index] = el
-
-    // Lazy-init the observer
-    if (!observerRef.current) {
-      observerRef.current = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          const colIndex = columnRefs.current.indexOf(entry.target as HTMLDivElement)
-          if (colIndex !== -1) {
-            columnHeightsRef.current[colIndex] = entry.contentRect.height
-          }
-        }
-      })
-    }
-
-    if (el) {
-      observerRef.current.observe(el)
-    }
-  }, [])
-
-  // Distribute items into columns
+  // Distribute items into columns using item count for balancing.
+  // Item count is the only reliable metric during synchronous distribution
+  // since measured heights are always stale (ResizeObserver fires async).
   const columns = useMemo(() => {
     const cols: T[][] = Array.from({ length: columnCount }, () => [])
     const assignments = assignmentsRef.current
-    const heights = columnHeightsRef.current
-
-    // Ensure heights array is sized correctly
-    while (heights.length < columnCount) {
-      heights.push(0)
-    }
+    const currentGetKey = getKeyRef.current
 
     for (const item of items) {
-      const key = getKey(item)
-      let colIndex = assignments.get(key)
+      const key = currentGetKey(item)
+      const colIndex = assignments.get(key)
 
       if (colIndex !== undefined && colIndex < columnCount) {
-        // Already assigned and column still exists
         cols[colIndex].push(item)
       } else {
-        // New item: assign to shortest column
+        // New item: assign to column with fewest items
         let shortest = 0
-        let minItems = cols[0].length
         for (let i = 1; i < columnCount; i++) {
-          // Prefer actual measured height, fall back to item count
-          const heightA = heights[shortest] || minItems
-          const heightB = heights[i] || cols[i].length
-          if (heightB < heightA) {
+          if (cols[i].length < cols[shortest].length) {
             shortest = i
-            minItems = cols[i].length
           }
         }
         assignments.set(key, shortest)
@@ -111,22 +79,21 @@ export function MasonryGrid<T>({
     }
 
     return cols
-  }, [items, columnCount, getKey])
+  }, [items, columnCount])
 
   return (
     <div
       data-testid="bookmark-grid"
       className={className}
-      style={{ display: 'flex', gap, alignItems: 'flex-start' }}
+      style={{ display: 'flex', gap, alignItems: 'flex-start', overflow: 'hidden' }}
     >
       {columns.map((colItems, colIndex) => (
         <div
           key={colIndex}
-          ref={setColumnRef(colIndex)}
-          style={{ flex: 1, display: 'flex', flexDirection: 'column', gap }}
+          style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap }}
         >
           {colItems.map((item) => (
-            <div key={getKey(item)} className="masonry-item">
+            <div key={getKeyRef.current(item)} className="masonry-item">
               {renderItem(item)}
             </div>
           ))}
