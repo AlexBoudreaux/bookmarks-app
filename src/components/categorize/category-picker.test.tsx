@@ -9,20 +9,20 @@ global.fetch = mockFetch
 
 describe('CategoryPicker', () => {
   const mockCategories = [
-    { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
-    { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
-    { id: '3', name: 'General Dev', parent_id: null, usage_count: 80, sort_order: 2, created_at: '2024-01-01' },
-    { id: '4', name: 'Image Gen', parent_id: null, usage_count: 70, sort_order: 3, created_at: '2024-01-01' },
-    { id: '5', name: 'Design', parent_id: null, usage_count: 60, sort_order: 4, created_at: '2024-01-01' },
-    { id: '6', name: 'Business', parent_id: null, usage_count: 50, sort_order: 5, created_at: '2024-01-01' },
-    { id: '7', name: 'Learning', parent_id: null, usage_count: 40, sort_order: 6, created_at: '2024-01-01' },
-    { id: '8', name: 'Tools', parent_id: null, usage_count: 30, sort_order: 7, created_at: '2024-01-01' },
-    { id: '9', name: 'Inspiration', parent_id: null, usage_count: 20, sort_order: 8, created_at: '2024-01-01' },
-    { id: '10', name: 'Personal', parent_id: null, usage_count: 10, sort_order: 9, created_at: '2024-01-01' },
-    { id: '11', name: 'Misc', parent_id: null, usage_count: 5, sort_order: 10, created_at: '2024-01-01' },
+    { id: '1', name: 'UI', parentId: null, usageCount: 100, sortOrder: 0, createdAt: '2024-01-01' },
+    { id: '2', name: 'AI Dev', parentId: null, usageCount: 90, sortOrder: 1, createdAt: '2024-01-01' },
+    { id: '3', name: 'General Dev', parentId: null, usageCount: 80, sortOrder: 2, createdAt: '2024-01-01' },
+    { id: '4', name: 'Image Gen', parentId: null, usageCount: 70, sortOrder: 3, createdAt: '2024-01-01' },
+    { id: '5', name: 'Design', parentId: null, usageCount: 60, sortOrder: 4, createdAt: '2024-01-01' },
+    { id: '6', name: 'Business', parentId: null, usageCount: 50, sortOrder: 5, createdAt: '2024-01-01' },
+    { id: '7', name: 'Learning', parentId: null, usageCount: 40, sortOrder: 6, createdAt: '2024-01-01' },
+    { id: '8', name: 'Tools', parentId: null, usageCount: 30, sortOrder: 7, createdAt: '2024-01-01' },
+    { id: '9', name: 'Inspiration', parentId: null, usageCount: 20, sortOrder: 8, createdAt: '2024-01-01' },
+    { id: '10', name: 'Personal', parentId: null, usageCount: 10, sortOrder: 9, createdAt: '2024-01-01' },
+    { id: '11', name: 'Misc', parentId: null, usageCount: 5, sortOrder: 10, createdAt: '2024-01-01' },
   ]
 
-  it('renders top 10 categories sorted by usage_count', () => {
+  it('renders top 10 categories sorted by usageCount', () => {
     render(<CategoryPicker categories={mockCategories} onSelect={vi.fn()} />)
 
     // Should show first 10 categories
@@ -96,13 +96,13 @@ describe('CategoryPicker', () => {
 
   describe('Subcategory picker', () => {
     const mockCategoriesWithSubs = [
-      { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
-      { id: '1a', name: 'Landing Pages', parent_id: '1', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
-      { id: '1b', name: 'Components', parent_id: '1', usage_count: 40, sort_order: 1, created_at: '2024-01-01' },
-      { id: '1c', name: 'General UI', parent_id: '1', usage_count: 30, sort_order: 2, created_at: '2024-01-01' },
-      { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
-      { id: '2a', name: 'Prompts', parent_id: '2', usage_count: 45, sort_order: 0, created_at: '2024-01-01' },
-      { id: '2b', name: 'Agents', parent_id: '2', usage_count: 35, sort_order: 1, created_at: '2024-01-01' },
+      { id: '1', name: 'UI', parentId: null, usageCount: 100, sortOrder: 0, createdAt: '2024-01-01' },
+      { id: '1a', name: 'Landing Pages', parentId: '1', usageCount: 50, sortOrder: 0, createdAt: '2024-01-01' },
+      { id: '1b', name: 'Components', parentId: '1', usageCount: 40, sortOrder: 1, createdAt: '2024-01-01' },
+      { id: '1c', name: 'General UI', parentId: '1', usageCount: 30, sortOrder: 2, createdAt: '2024-01-01' },
+      { id: '2', name: 'AI Dev', parentId: null, usageCount: 90, sortOrder: 1, createdAt: '2024-01-01' },
+      { id: '2a', name: 'Prompts', parentId: '2', usageCount: 45, sortOrder: 0, createdAt: '2024-01-01' },
+      { id: '2b', name: 'Agents', parentId: '2', usageCount: 35, sortOrder: 1, createdAt: '2024-01-01' },
     ]
 
     it('transitions to subcategory view after main category selected', async () => {
@@ -226,9 +226,9 @@ describe('CategoryPicker', () => {
     })
 
     const mockCategories = [
-      { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
-      { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
-      { id: '1a', name: 'Landing Pages', parent_id: '1', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
+      { id: '1', name: 'UI', parentId: null, usageCount: 100, sortOrder: 0, createdAt: '2024-01-01' },
+      { id: '2', name: 'AI Dev', parentId: null, usageCount: 90, sortOrder: 1, createdAt: '2024-01-01' },
+      { id: '1a', name: 'Landing Pages', parentId: '1', usageCount: 50, sortOrder: 0, createdAt: '2024-01-01' },
     ]
 
     it('opens new main category modal when minus key is pressed in main state', async () => {
@@ -301,10 +301,10 @@ describe('CategoryPicker', () => {
       const newCategory = {
         id: 'new-id',
         name: 'Test Category',
-        parent_id: null,
-        usage_count: 0,
-        sort_order: 0,
-        created_at: '2024-01-01',
+        parentId: null,
+        usageCount: 0,
+        sortOrder: 0,
+        createdAt: '2024-01-01',
       }
 
       mockFetch.mockResolvedValueOnce({
@@ -341,10 +341,10 @@ describe('CategoryPicker', () => {
       const newCategory = {
         id: 'new-sub-id',
         name: 'New Subcat',
-        parent_id: '1',
-        usage_count: 0,
-        sort_order: 0,
-        created_at: '2024-01-01',
+        parentId: '1',
+        usageCount: 0,
+        sortOrder: 0,
+        createdAt: '2024-01-01',
       }
 
       mockFetch.mockResolvedValueOnce({
@@ -392,24 +392,24 @@ describe('CategoryPicker', () => {
   describe('Subcategory pagination', () => {
     // Create 15 subcategories for UI category to test pagination
     const mockCategoriesWithManySubs = [
-      { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
-      { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
-      // 15 subcategories under UI, sorted by usage_count descending
-      { id: 'sub1', name: 'Sub 1', parent_id: '1', usage_count: 150, sort_order: 0, created_at: '2024-01-01' },
-      { id: 'sub2', name: 'Sub 2', parent_id: '1', usage_count: 140, sort_order: 1, created_at: '2024-01-01' },
-      { id: 'sub3', name: 'Sub 3', parent_id: '1', usage_count: 130, sort_order: 2, created_at: '2024-01-01' },
-      { id: 'sub4', name: 'Sub 4', parent_id: '1', usage_count: 120, sort_order: 3, created_at: '2024-01-01' },
-      { id: 'sub5', name: 'Sub 5', parent_id: '1', usage_count: 110, sort_order: 4, created_at: '2024-01-01' },
-      { id: 'sub6', name: 'Sub 6', parent_id: '1', usage_count: 100, sort_order: 5, created_at: '2024-01-01' },
-      { id: 'sub7', name: 'Sub 7', parent_id: '1', usage_count: 90, sort_order: 6, created_at: '2024-01-01' },
-      { id: 'sub8', name: 'Sub 8', parent_id: '1', usage_count: 80, sort_order: 7, created_at: '2024-01-01' },
-      { id: 'sub9', name: 'Sub 9', parent_id: '1', usage_count: 70, sort_order: 8, created_at: '2024-01-01' },
-      { id: 'sub10', name: 'Sub 10', parent_id: '1', usage_count: 60, sort_order: 9, created_at: '2024-01-01' },
-      { id: 'sub11', name: 'Sub 11', parent_id: '1', usage_count: 50, sort_order: 10, created_at: '2024-01-01' },
-      { id: 'sub12', name: 'Sub 12', parent_id: '1', usage_count: 40, sort_order: 11, created_at: '2024-01-01' },
-      { id: 'sub13', name: 'Sub 13', parent_id: '1', usage_count: 30, sort_order: 12, created_at: '2024-01-01' },
-      { id: 'sub14', name: 'Sub 14', parent_id: '1', usage_count: 20, sort_order: 13, created_at: '2024-01-01' },
-      { id: 'sub15', name: 'Sub 15', parent_id: '1', usage_count: 10, sort_order: 14, created_at: '2024-01-01' },
+      { id: '1', name: 'UI', parentId: null, usageCount: 100, sortOrder: 0, createdAt: '2024-01-01' },
+      { id: '2', name: 'AI Dev', parentId: null, usageCount: 90, sortOrder: 1, createdAt: '2024-01-01' },
+      // 15 subcategories under UI, sorted by usageCount descending
+      { id: 'sub1', name: 'Sub 1', parentId: '1', usageCount: 150, sortOrder: 0, createdAt: '2024-01-01' },
+      { id: 'sub2', name: 'Sub 2', parentId: '1', usageCount: 140, sortOrder: 1, createdAt: '2024-01-01' },
+      { id: 'sub3', name: 'Sub 3', parentId: '1', usageCount: 130, sortOrder: 2, createdAt: '2024-01-01' },
+      { id: 'sub4', name: 'Sub 4', parentId: '1', usageCount: 120, sortOrder: 3, createdAt: '2024-01-01' },
+      { id: 'sub5', name: 'Sub 5', parentId: '1', usageCount: 110, sortOrder: 4, createdAt: '2024-01-01' },
+      { id: 'sub6', name: 'Sub 6', parentId: '1', usageCount: 100, sortOrder: 5, createdAt: '2024-01-01' },
+      { id: 'sub7', name: 'Sub 7', parentId: '1', usageCount: 90, sortOrder: 6, createdAt: '2024-01-01' },
+      { id: 'sub8', name: 'Sub 8', parentId: '1', usageCount: 80, sortOrder: 7, createdAt: '2024-01-01' },
+      { id: 'sub9', name: 'Sub 9', parentId: '1', usageCount: 70, sortOrder: 8, createdAt: '2024-01-01' },
+      { id: 'sub10', name: 'Sub 10', parentId: '1', usageCount: 60, sortOrder: 9, createdAt: '2024-01-01' },
+      { id: 'sub11', name: 'Sub 11', parentId: '1', usageCount: 50, sortOrder: 10, createdAt: '2024-01-01' },
+      { id: 'sub12', name: 'Sub 12', parentId: '1', usageCount: 40, sortOrder: 11, createdAt: '2024-01-01' },
+      { id: 'sub13', name: 'Sub 13', parentId: '1', usageCount: 30, sortOrder: 12, createdAt: '2024-01-01' },
+      { id: 'sub14', name: 'Sub 14', parentId: '1', usageCount: 20, sortOrder: 13, createdAt: '2024-01-01' },
+      { id: 'sub15', name: 'Sub 15', parentId: '1', usageCount: 10, sortOrder: 14, createdAt: '2024-01-01' },
     ]
 
     it('shows first 10 subcategories by default', async () => {
@@ -453,9 +453,9 @@ describe('CategoryPicker', () => {
     it('does not show More button when 10 or fewer subcategories exist', async () => {
       const user = userEvent.setup()
       const mockCategoriesWithFewSubs = [
-        { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
-        { id: 'sub1', name: 'Sub 1', parent_id: '1', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
-        { id: 'sub2', name: 'Sub 2', parent_id: '1', usage_count: 40, sort_order: 1, created_at: '2024-01-01' },
+        { id: '1', name: 'UI', parentId: null, usageCount: 100, sortOrder: 0, createdAt: '2024-01-01' },
+        { id: 'sub1', name: 'Sub 1', parentId: '1', usageCount: 50, sortOrder: 0, createdAt: '2024-01-01' },
+        { id: 'sub2', name: 'Sub 2', parentId: '1', usageCount: 40, sortOrder: 1, createdAt: '2024-01-01' },
       ]
 
       render(<CategoryPicker categories={mockCategoriesWithFewSubs} onSelect={vi.fn()} />)
@@ -553,7 +553,7 @@ describe('CategoryPicker', () => {
       // Add subcategories under AI Dev too
       const categoriesWithMultipleMains = [
         ...mockCategoriesWithManySubs,
-        { id: 'ai-sub1', name: 'AI Sub 1', parent_id: '2', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
+        { id: 'ai-sub1', name: 'AI Sub 1', parentId: '2', usageCount: 50, sortOrder: 0, createdAt: '2024-01-01' },
       ]
 
       render(<CategoryPicker categories={categoriesWithMultipleMains} onSelect={vi.fn()} />)

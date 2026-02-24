@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/db'
+import { bookmarks } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,18 +14,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { error } = await supabase
-      .from('bookmarks')
-      .update({ is_skipped: true })
-      .eq('id', bookmarkId)
-
-    if (error) {
-      console.error('Failed to skip bookmark:', error)
-      return NextResponse.json(
-        { error: 'Failed to skip bookmark' },
-        { status: 500 }
-      )
-    }
+    await db
+      .update(bookmarks)
+      .set({ isSkipped: true })
+      .where(eq(bookmarks.id, bookmarkId))
 
     return NextResponse.json({ success: true })
   } catch (error) {

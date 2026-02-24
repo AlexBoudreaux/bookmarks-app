@@ -17,27 +17,27 @@ vi.mock('./browse-link-card', () => ({
 
 // Sample test data
 const mockCategories = [
-  { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
-  { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
-  { id: '1a', name: 'Components', parent_id: '1', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
-  { id: '1b', name: 'Landing Pages', parent_id: '1', usage_count: 30, sort_order: 1, created_at: '2024-01-01' },
-  { id: '2a', name: 'Agents', parent_id: '2', usage_count: 40, sort_order: 0, created_at: '2024-01-01' },
+  { id: '1', name: 'UI', parentId: null, usageCount: 100, sortOrder: 0, createdAt: '2024-01-01' },
+  { id: '2', name: 'AI Dev', parentId: null, usageCount: 90, sortOrder: 1, createdAt: '2024-01-01' },
+  { id: '1a', name: 'Components', parentId: '1', usageCount: 50, sortOrder: 0, createdAt: '2024-01-01' },
+  { id: '1b', name: 'Landing Pages', parentId: '1', usageCount: 30, sortOrder: 1, createdAt: '2024-01-01' },
+  { id: '2a', name: 'Agents', parentId: '2', usageCount: 40, sortOrder: 0, createdAt: '2024-01-01' },
 ]
 
 const mockBookmarks = [
-  { id: '1', url: 'https://twitter.com/test/status/123', title: 'Test Tweet', is_tweet: true, is_categorized: true, domain: 'twitter.com', notes: null, og_image: null, add_date: null },
-  { id: '2', url: 'https://github.com/example/repo', title: 'GitHub Repo', is_tweet: false, is_categorized: true, domain: 'github.com', notes: null, og_image: null, add_date: null },
-  { id: '3', url: 'https://example.com/article', title: 'Example Article', is_tweet: false, is_categorized: true, domain: 'example.com', notes: null, og_image: null, add_date: null },
+  { id: '1', url: 'https://twitter.com/test/status/123', title: 'Test Tweet', isTweet: true, isCategorized: true, domain: 'twitter.com', notes: null, ogImage: null, addDate: null },
+  { id: '2', url: 'https://github.com/example/repo', title: 'GitHub Repo', isTweet: false, isCategorized: true, domain: 'github.com', notes: null, ogImage: null, addDate: null },
+  { id: '3', url: 'https://example.com/article', title: 'Example Article', isTweet: false, isCategorized: true, domain: 'example.com', notes: null, ogImage: null, addDate: null },
 ]
 
 // Junction table data linking bookmarks to categories
 const mockBookmarkCategories = [
-  { bookmark_id: '1', category_id: '1a' }, // Test Tweet -> UI/Components
-  { bookmark_id: '1', category_id: '1' },  // Test Tweet -> UI (main)
-  { bookmark_id: '2', category_id: '2a' }, // GitHub Repo -> AI Dev/Agents
-  { bookmark_id: '2', category_id: '2' },  // GitHub Repo -> AI Dev (main)
-  { bookmark_id: '3', category_id: '1b' }, // Example Article -> UI/Landing Pages
-  { bookmark_id: '3', category_id: '1' },  // Example Article -> UI (main)
+  { bookmarkId: '1', categoryId: '1a' }, // Test Tweet -> UI/Components
+  { bookmarkId: '1', categoryId: '1' },  // Test Tweet -> UI (main)
+  { bookmarkId: '2', categoryId: '2a' }, // GitHub Repo -> AI Dev/Agents
+  { bookmarkId: '2', categoryId: '2' },  // GitHub Repo -> AI Dev (main)
+  { bookmarkId: '3', categoryId: '1b' }, // Example Article -> UI/Landing Pages
+  { bookmarkId: '3', categoryId: '1' },  // Example Article -> UI (main)
 ]
 
 import { BrowseContent } from './browse-content'
@@ -251,12 +251,12 @@ describe('BrowseContent', () => {
         id: `bm-${i}`,
         url: `https://example.com/${i}`,
         title: `Bookmark ${i}`,
-        is_tweet: false,
-        is_categorized: true,
+        isTweet: false,
+        isCategorized: true,
         domain: 'example.com',
         notes: null,
-        og_image: null,
-        add_date: null,
+        ogImage: null,
+        addDate: null,
       }))
 
       render(<BrowseContent categories={[]} bookmarks={manyBookmarks} bookmarkCategories={[]} />)
@@ -277,12 +277,12 @@ describe('BrowseContent', () => {
         id: `bm-${i}`,
         url: `https://example.com/${i}`,
         title: `Bookmark ${i}`,
-        is_tweet: false,
-        is_categorized: true,
+        isTweet: false,
+        isCategorized: true,
         domain: 'example.com',
         notes: null,
-        og_image: null,
-        add_date: null,
+        ogImage: null,
+        addDate: null,
       }))
 
       render(<BrowseContent categories={[]} bookmarks={manyBookmarks} bookmarkCategories={[]} />)
@@ -299,18 +299,18 @@ describe('BrowseContent', () => {
         id: `bm-${i}`,
         url: `https://example.com/${i}`,
         title: `Bookmark ${i}`,
-        is_tweet: false,
-        is_categorized: true,
+        isTweet: false,
+        isCategorized: true,
         domain: 'example.com',
         notes: null,
-        og_image: null,
-        add_date: null,
+        ogImage: null,
+        addDate: null,
       }))
 
       // Link all bookmarks to UI category
       const manyBookmarkCategories = manyBookmarks.map(b => ({
-        bookmark_id: b.id,
-        category_id: '1',
+        bookmarkId: b.id,
+        categoryId: '1',
       }))
 
       render(
@@ -355,7 +355,7 @@ describe('BrowseContent', () => {
 
     it('fetches search results from API after debounce', async () => {
       const mockSearchResults = [
-        { id: 'sr1', url: 'https://example.com/react', title: 'React Tutorial', is_tweet: false, is_categorized: true, domain: 'example.com', notes: null, og_image: null, add_date: null },
+        { id: 'sr1', url: 'https://example.com/react', title: 'React Tutorial', isTweet: false, isCategorized: true, domain: 'example.com', notes: null, ogImage: null, addDate: null },
       ]
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
@@ -377,7 +377,7 @@ describe('BrowseContent', () => {
 
     it('shows search results when query is entered', async () => {
       const mockSearchResults = [
-        { id: 'sr1', url: 'https://example.com/react', title: 'React Tutorial', is_tweet: false, is_categorized: true, domain: 'example.com', notes: null, og_image: null, add_date: null },
+        { id: 'sr1', url: 'https://example.com/react', title: 'React Tutorial', isTweet: false, isCategorized: true, domain: 'example.com', notes: null, ogImage: null, addDate: null },
       ]
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
@@ -400,7 +400,7 @@ describe('BrowseContent', () => {
 
     it('clears search results when query is cleared', async () => {
       const mockSearchResults = [
-        { id: 'sr1', url: 'https://example.com/react', title: 'React Tutorial', is_tweet: false, is_categorized: true, domain: 'example.com', notes: null, og_image: null, add_date: null },
+        { id: 'sr1', url: 'https://example.com/react', title: 'React Tutorial', isTweet: false, isCategorized: true, domain: 'example.com', notes: null, ogImage: null, addDate: null },
       ]
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
@@ -470,12 +470,12 @@ describe('BrowseContent', () => {
         id: `bm-${i}`,
         url: `https://example.com/${i}`,
         title: `Bookmark ${i}`,
-        is_tweet: false,
-        is_categorized: true,
+        isTweet: false,
+        isCategorized: true,
         domain: 'example.com',
         notes: null,
-        og_image: null,
-        add_date: null,
+        ogImage: null,
+        addDate: null,
       }))
 
       const user = userEvent.setup()
@@ -505,10 +505,10 @@ describe('BrowseContent', () => {
   describe('Filter chips and dropdowns', () => {
     // Extended mock data for filter testing
     const filterTestBookmarks = [
-      { id: '1', url: 'https://twitter.com/test/status/123', title: 'Test Tweet', is_tweet: true, is_categorized: true, domain: 'twitter.com', notes: 'Some notes here', og_image: null, add_date: '2024-01-15T00:00:00Z' },
-      { id: '2', url: 'https://github.com/example/repo', title: 'GitHub Repo', is_tweet: false, is_categorized: true, domain: 'github.com', notes: null, og_image: null, add_date: '2024-01-10T00:00:00Z' },
-      { id: '3', url: 'https://example.com/article', title: 'Example Article', is_tweet: false, is_categorized: true, domain: 'example.com', notes: 'Important article', og_image: null, add_date: '2024-01-20T00:00:00Z' },
-      { id: '4', url: 'https://twitter.com/other/status/456', title: 'Another Tweet', is_tweet: true, is_categorized: true, domain: 'twitter.com', notes: null, og_image: null, add_date: '2024-01-05T00:00:00Z' },
+      { id: '1', url: 'https://twitter.com/test/status/123', title: 'Test Tweet', isTweet: true, isCategorized: true, domain: 'twitter.com', notes: 'Some notes here', ogImage: null, addDate: '2024-01-15T00:00:00Z' },
+      { id: '2', url: 'https://github.com/example/repo', title: 'GitHub Repo', isTweet: false, isCategorized: true, domain: 'github.com', notes: null, ogImage: null, addDate: '2024-01-10T00:00:00Z' },
+      { id: '3', url: 'https://example.com/article', title: 'Example Article', isTweet: false, isCategorized: true, domain: 'example.com', notes: 'Important article', ogImage: null, addDate: '2024-01-20T00:00:00Z' },
+      { id: '4', url: 'https://twitter.com/other/status/456', title: 'Another Tweet', isTweet: true, isCategorized: true, domain: 'twitter.com', notes: null, ogImage: null, addDate: '2024-01-05T00:00:00Z' },
     ]
 
     describe('Sort dropdown', () => {
@@ -826,12 +826,12 @@ describe('BrowseContent', () => {
           id: `bm-${i}`,
           url: `https://twitter.com/test/status/${i}`,
           title: `Bookmark ${i}`,
-          is_tweet: i < 10, // First 10 are tweets
-          is_categorized: true,
+          isTweet: i < 10, // First 10 are tweets
+          isCategorized: true,
           domain: 'twitter.com',
           notes: i < 5 ? 'Has notes' : null, // First 5 have notes
-          og_image: null,
-          add_date: `2024-01-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
+          ogImage: null,
+          addDate: `2024-01-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
         }))
 
         render(<BrowseContent categories={[]} bookmarks={manyBookmarks} bookmarkCategories={[]} />)

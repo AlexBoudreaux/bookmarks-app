@@ -1,5 +1,7 @@
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/db'
+import { categories, bookmarkCategories, type Category, type BookmarkCategory } from '@/db/schema'
+import { asc } from 'drizzle-orm'
 import { CategoriesContent } from '@/components/categories/categories-content'
 import { AddCategoryButton } from '@/components/categories/add-category-button'
 
@@ -7,15 +9,18 @@ export const dynamic = 'force-dynamic'
 
 export default async function CategoriesPage() {
   // Fetch all categories
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('*')
-    .order('sort_order', { ascending: true })
+  const allCategories = await db
+    .select()
+    .from(categories)
+    .orderBy(asc(categories.sortOrder)) as Category[]
 
   // Fetch bookmark counts per category
-  const { data: bookmarkCategories } = await supabase
-    .from('bookmark_categories')
-    .select('bookmark_id, category_id')
+  const allBookmarkCategories = await db
+    .select({
+      bookmarkId: bookmarkCategories.bookmarkId,
+      categoryId: bookmarkCategories.categoryId,
+    })
+    .from(bookmarkCategories) as BookmarkCategory[]
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -45,8 +50,8 @@ export default async function CategoriesPage() {
           </p>
 
           <CategoriesContent
-            categories={categories || []}
-            bookmarkCategories={bookmarkCategories || []}
+            categories={allCategories}
+            bookmarkCategories={allBookmarkCategories}
           />
 
           <p className="text-xs text-zinc-600 mt-8">

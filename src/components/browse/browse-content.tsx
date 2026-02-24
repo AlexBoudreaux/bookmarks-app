@@ -17,27 +17,27 @@ type TypeFilter = 'all' | 'tweet' | 'non-tweet'
 interface Category {
   id: string
   name: string
-  parent_id: string | null
-  usage_count: number | null
-  sort_order: number | null
-  created_at: string | null
+  parentId: string | null
+  usageCount: number | null
+  sortOrder: number | null
+  createdAt: Date | null
 }
 
 interface BookmarkData {
   id: string
   url: string
   title: string | null
-  is_tweet: boolean | null
-  is_categorized: boolean | null
+  isTweet: boolean | null
+  isCategorized: boolean | null
   domain: string | null
   notes: string | null
-  og_image: string | null
-  add_date: string | null
+  ogImage: string | null
+  addDate: Date | null
 }
 
 interface BookmarkCategory {
-  bookmark_id: string
-  category_id: string
+  bookmarkId: string
+  categoryId: string
 }
 
 interface BrowseContentProps {
@@ -137,21 +137,21 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
 
   // Separate main categories from subcategories
   const mainCategories = useMemo(
-    () => categories.filter(c => c.parent_id === null),
+    () => categories.filter(c => c.parentId === null),
     [categories]
   )
 
   const getSubcategories = (parentId: string) =>
-    categories.filter(c => c.parent_id === parentId)
+    categories.filter(c => c.parentId === parentId)
 
   // Build a map of category ID -> set of bookmark IDs for efficient lookup
   const categoryToBookmarks = useMemo(() => {
     const map = new Map<string, Set<string>>()
     for (const bc of bookmarkCategories) {
-      if (!map.has(bc.category_id)) {
-        map.set(bc.category_id, new Set())
+      if (!map.has(bc.categoryId)) {
+        map.set(bc.categoryId, new Set())
       }
-      map.get(bc.category_id)!.add(bc.bookmark_id)
+      map.get(bc.categoryId)!.add(bc.bookmarkId)
     }
     return map
   }, [bookmarkCategories])
@@ -189,7 +189,7 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
       result = bookmarks
     } else {
       const selectedCategory = categories.find(c => c.id === selectedCategoryId)
-      const isMainCategory = selectedCategory?.parent_id === null
+      const isMainCategory = selectedCategory?.parentId === null
 
       if (isMainCategory) {
         // Include bookmarks from main category and all its subcategories
@@ -214,9 +214,9 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
 
     // Apply type filter
     if (typeFilter === 'tweet') {
-      result = result.filter(b => b.is_tweet === true)
+      result = result.filter(b => b.isTweet === true)
     } else if (typeFilter === 'non-tweet') {
-      result = result.filter(b => b.is_tweet !== true)
+      result = result.filter(b => b.isTweet !== true)
     }
 
     // Apply domain filter
@@ -233,19 +233,18 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
     const sorted = [...result]
     if (sortOption === 'newest') {
       sorted.sort((a, b) => {
-        const dateA = a.add_date ? new Date(a.add_date).getTime() : 0
-        const dateB = b.add_date ? new Date(b.add_date).getTime() : 0
+        const dateA = a.addDate ? new Date(a.addDate).getTime() : 0
+        const dateB = b.addDate ? new Date(b.addDate).getTime() : 0
         return dateB - dateA
       })
     } else if (sortOption === 'oldest') {
       sorted.sort((a, b) => {
-        const dateA = a.add_date ? new Date(a.add_date).getTime() : 0
-        const dateB = b.add_date ? new Date(b.add_date).getTime() : 0
+        const dateA = a.addDate ? new Date(a.addDate).getTime() : 0
+        const dateB = b.addDate ? new Date(b.addDate).getTime() : 0
         return dateA - dateB
       })
     }
-    // 'recently_viewed' would need last_viewed_at field tracking, leaving as-is for now
-
+    // 'recently_viewed' would need lastViewedAt field tracking, leaving as-is for now
     return sorted
   }, [selectedCategoryId, bookmarks, categories, categoryToBookmarks, searchResults, typeFilter, selectedDomains, hasNotesFilter, sortOption])
 
@@ -736,7 +735,7 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
               className="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-4"
             >
               {displayedBookmarks.map(bookmark => (
-                bookmark.is_tweet ? (
+                bookmark.isTweet ? (
                   <article key={bookmark.id} className="break-inside-avoid mb-4">
                     <TweetCard url={bookmark.url} title={bookmark.title} />
                   </article>
@@ -750,7 +749,7 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
                       title={bookmark.title}
                       domain={bookmark.domain}
                       notes={bookmark.notes}
-                      ogImage={bookmark.og_image}
+                      ogImage={bookmark.ogImage}
                     />
                   </article>
                 )

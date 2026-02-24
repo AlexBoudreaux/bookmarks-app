@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ogs from 'open-graph-scraper'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/db'
+import { bookmarks } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 
 interface OGResult {
   ogTitle?: string
@@ -55,12 +57,12 @@ export async function POST(request: NextRequest) {
 
     // Cache og_image to database if bookmarkId provided
     if (bookmarkId && image) {
-      const { error: dbError } = await supabase
-        .from('bookmarks')
-        .update({ og_image: image })
-        .eq('id', bookmarkId)
-
-      if (dbError) {
+      try {
+        await db
+          .update(bookmarks)
+          .set({ ogImage: image })
+          .where(eq(bookmarks.id, bookmarkId))
+      } catch (dbError) {
         console.error('Failed to cache og_image:', dbError)
       }
     }

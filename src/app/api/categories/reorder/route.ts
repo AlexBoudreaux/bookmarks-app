@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/db'
+import { categories } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 
 export async function POST(request: Request) {
   try {
@@ -13,24 +15,14 @@ export async function POST(request: Request) {
     }
 
     // Update each category's sort_order based on its position in the array
-    const updates = categoryIds.map((id: string, index: number) =>
-      supabase
-        .from('categories')
-        .update({ sort_order: index })
-        .eq('id', id)
-    )
-
-    const results = await Promise.all(updates)
-
-    // Check if any updates failed
-    const errors = results.filter(r => r.error)
-    if (errors.length > 0) {
-      console.error('Failed to update some categories:', errors)
-      return NextResponse.json(
-        { error: 'Failed to update category order' },
-        { status: 500 }
+    await Promise.all(
+      categoryIds.map((id: string, index: number) =>
+        db
+          .update(categories)
+          .set({ sortOrder: index })
+          .where(eq(categories.id, id))
       )
-    }
+    )
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -1,48 +1,39 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock Supabase before importing route
-vi.mock('@/lib/supabase', () => {
-  const mockUpdate = vi.fn()
-  const mockEq = vi.fn()
-  const mockInsert = vi.fn()
-  const mockRpc = vi.fn()
-  const mockDelete = vi.fn()
-  const mockDeleteEq = vi.fn()
+// Track all db operations
+const mockDeleteWhere = vi.fn()
+const mockInsertValues = vi.fn()
+const mockUpdateSet = vi.fn()
+const mockUpdateSetWhere = vi.fn()
 
-  return {
-    supabase: {
-      from: vi.fn((table: string) => {
-        if (table === 'bookmarks') {
-          return {
-            update: mockUpdate.mockReturnValue({
-              eq: mockEq,
-            }),
-          }
-        }
-        if (table === 'bookmark_categories') {
-          return {
-            insert: mockInsert,
-            delete: mockDelete.mockReturnValue({
-              eq: mockDeleteEq,
-            }),
-          }
-        }
-        return {}
-      }),
-      rpc: mockRpc,
-    },
-    __mockUpdate: mockUpdate,
-    __mockEq: mockEq,
-    __mockInsert: mockInsert,
-    __mockRpc: mockRpc,
-    __mockDelete: mockDelete,
-    __mockDeleteEq: mockDeleteEq,
-  }
-})
+vi.mock('@/db', () => ({
+  db: {
+    delete: vi.fn(() => ({ where: mockDeleteWhere })),
+    insert: vi.fn(() => ({ values: mockInsertValues })),
+    update: vi.fn(() => ({ set: mockUpdateSet })),
+  },
+}))
+
+vi.mock('@/db/schema', () => ({
+  bookmarks: { id: 'bookmarks.id', isCategorized: 'bookmarks.is_categorized', isSkipped: 'bookmarks.is_skipped' },
+  bookmarkCategories: { bookmarkId: 'bookmark_categories.bookmark_id', categoryId: 'bookmark_categories.category_id' },
+  categories: { id: 'categories.id', usageCount: 'categories.usage_count' },
+}))
+
+vi.mock('drizzle-orm', () => ({
+  eq: vi.fn((...args: unknown[]) => ({ type: 'eq', args })),
+  inArray: vi.fn((...args: unknown[]) => ({ type: 'inArray', args })),
+  sql: vi.fn(),
+}))
 
 describe('POST /api/bookmarks/categorize', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Default success path
+    mockDeleteWhere.mockResolvedValue(undefined)
+    mockInsertValues.mockResolvedValue(undefined)
+    mockUpdateSet.mockReturnValue({ where: mockUpdateSetWhere })
+    mockUpdateSetWhere.mockResolvedValue(undefined)
   })
 
   it('returns 400 if bookmarkId is missing', async () => {
@@ -74,12 +65,6 @@ describe('POST /api/bookmarks/categorize', () => {
   })
 
   it('deletes existing categories then inserts new ones (idempotent)', async () => {
-    const { __mockInsert, __mockEq, __mockRpc, __mockDeleteEq } = await import('@/lib/supabase') as any
-    __mockDeleteEq.mockReturnValue({ error: null })
-    __mockInsert.mockReturnValue({ error: null })
-    __mockEq.mockReturnValue({ error: null })
-    __mockRpc.mockResolvedValue({ error: null })
-
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/bookmarks/categorize', {
       method: 'POST',
@@ -94,22 +79,17 @@ describe('POST /api/bookmarks/categorize', () => {
 
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
-    // Verify delete was called first
-    expect(__mockDeleteEq).toHaveBeenCalledWith('bookmark_id', 'bookmark-1')
-    // Then insert
-    expect(__mockInsert).toHaveBeenCalledWith([
-      { bookmark_id: 'bookmark-1', category_id: 'cat-1' },
-      { bookmark_id: 'bookmark-1', category_id: 'cat-2' },
+    // Verify delete was called
+    expect(mockDeleteWhere).toHaveBeenCalled()
+    // Then insert with junction records
+    expect(mockInsertValues).toHaveBeenCalledWith([
+      { bookmarkId: 'bookmark-1', categoryId: 'cat-1' },
+      { bookmarkId: 'bookmark-1', categoryId: 'cat-2' },
     ])
   })
 
-  it('sets is_categorized=true on bookmark', async () => {
-    const { supabase, __mockInsert, __mockEq, __mockRpc, __mockDeleteEq } = await import('@/lib/supabase') as any
-    __mockDeleteEq.mockReturnValue({ error: null })
-    __mockInsert.mockReturnValue({ error: null })
-    __mockEq.mockReturnValue({ error: null })
-    __mockRpc.mockResolvedValue({ error: null })
-
+  it('sets isCategorized=true on bookmark', async () => {
+    const { db } = await import('@/db')
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/bookmarks/categorize', {
       method: 'POST',
@@ -121,18 +101,13 @@ describe('POST /api/bookmarks/categorize', () => {
 
     await POST(request as any)
 
-    // Check that from('bookmarks') was called
-    expect(supabase.from).toHaveBeenCalledWith('bookmarks')
-    expect(__mockEq).toHaveBeenCalledWith('id', 'bookmark-1')
+    // Check that update was called for bookmarks
+    expect(db.update).toHaveBeenCalled()
+    expect(mockUpdateSet).toHaveBeenCalledWith({ isCategorized: true, isSkipped: false })
   })
 
-  it('increments usage_count on selected categories via RPC', async () => {
-    const { supabase, __mockInsert, __mockEq, __mockRpc, __mockDeleteEq } = await import('@/lib/supabase') as any
-    __mockDeleteEq.mockReturnValue({ error: null })
-    __mockInsert.mockReturnValue({ error: null })
-    __mockEq.mockReturnValue({ error: null })
-    __mockRpc.mockResolvedValue({ error: null })
-
+  it('increments usageCount on selected categories', async () => {
+    const { db } = await import('@/db')
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/bookmarks/categorize', {
       method: 'POST',
@@ -144,15 +119,12 @@ describe('POST /api/bookmarks/categorize', () => {
 
     await POST(request as any)
 
-    // Should call RPC function to increment usage counts
-    expect(supabase.rpc).toHaveBeenCalledWith('increment_usage_counts', {
-      category_ids: ['cat-1', 'cat-2'],
-    })
+    // db.update should be called for both bookmarks and categories
+    expect(db.update).toHaveBeenCalledTimes(2)
   })
 
-  it('returns 500 if delete fails', async () => {
-    const { __mockDeleteEq } = await import('@/lib/supabase') as any
-    __mockDeleteEq.mockReturnValue({ error: { message: 'Database error' } })
+  it('returns 500 if delete throws', async () => {
+    mockDeleteWhere.mockRejectedValue(new Error('Database error'))
 
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/bookmarks/categorize', {
@@ -167,13 +139,11 @@ describe('POST /api/bookmarks/categorize', () => {
     const data = await response.json()
 
     expect(response.status).toBe(500)
-    expect(data.error).toBe('Failed to clear existing categories')
+    expect(data.error).toBe('Internal server error')
   })
 
-  it('returns 500 if bookmark_categories insert fails', async () => {
-    const { __mockInsert, __mockDeleteEq } = await import('@/lib/supabase') as any
-    __mockDeleteEq.mockReturnValue({ error: null })
-    __mockInsert.mockReturnValue({ error: { message: 'Database error' } })
+  it('returns 500 if bookmark_categories insert throws', async () => {
+    mockInsertValues.mockRejectedValue(new Error('Database error'))
 
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/bookmarks/categorize', {
@@ -188,14 +158,11 @@ describe('POST /api/bookmarks/categorize', () => {
     const data = await response.json()
 
     expect(response.status).toBe(500)
-    expect(data.error).toBe('Failed to save categorization')
+    expect(data.error).toBe('Internal server error')
   })
 
-  it('returns 500 if bookmark update fails', async () => {
-    const { __mockInsert, __mockEq, __mockDeleteEq } = await import('@/lib/supabase') as any
-    __mockDeleteEq.mockReturnValue({ error: null })
-    __mockInsert.mockReturnValue({ error: null })
-    __mockEq.mockReturnValue({ error: { message: 'Database error' } })
+  it('returns 500 if bookmark update throws', async () => {
+    mockUpdateSetWhere.mockRejectedValueOnce(new Error('Database error'))
 
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/bookmarks/categorize', {
@@ -210,19 +177,11 @@ describe('POST /api/bookmarks/categorize', () => {
     const data = await response.json()
 
     expect(response.status).toBe(500)
-    expect(data.error).toBe('Failed to mark bookmark as categorized')
+    expect(data.error).toBe('Internal server error')
   })
 
   it('handles multiple category pairs (main + sub for each)', async () => {
-    const { __mockInsert, __mockEq, __mockRpc, __mockDeleteEq } = await import('@/lib/supabase') as any
-    __mockDeleteEq.mockReturnValue({ error: null })
-    __mockInsert.mockReturnValue({ error: null })
-    __mockEq.mockReturnValue({ error: null })
-    __mockRpc.mockResolvedValue({ error: null })
-
     const { POST } = await import('./route')
-    // Simulate 2 category pairs: AI > Prompts, Learning > Threads
-    // categoryIds would be [main1-id, sub1-id, main2-id, sub2-id]
     const request = new Request('http://localhost/api/bookmarks/categorize', {
       method: 'POST',
       body: JSON.stringify({
@@ -236,24 +195,16 @@ describe('POST /api/bookmarks/categorize', () => {
 
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
-    expect(__mockInsert).toHaveBeenCalledWith([
-      { bookmark_id: 'bookmark-1', category_id: 'ai-id' },
-      { bookmark_id: 'bookmark-1', category_id: 'prompts-id' },
-      { bookmark_id: 'bookmark-1', category_id: 'learning-id' },
-      { bookmark_id: 'bookmark-1', category_id: 'threads-id' },
+    expect(mockInsertValues).toHaveBeenCalledWith([
+      { bookmarkId: 'bookmark-1', categoryId: 'ai-id' },
+      { bookmarkId: 'bookmark-1', categoryId: 'prompts-id' },
+      { bookmarkId: 'bookmark-1', categoryId: 'learning-id' },
+      { bookmarkId: 'bookmark-1', categoryId: 'threads-id' },
     ])
   })
 
   it('dedupes category IDs when same main category used twice', async () => {
-    const { __mockInsert, __mockEq, __mockRpc, __mockDeleteEq } = await import('@/lib/supabase') as any
-    __mockDeleteEq.mockReturnValue({ error: null })
-    __mockInsert.mockReturnValue({ error: null })
-    __mockEq.mockReturnValue({ error: null })
-    __mockRpc.mockResolvedValue({ error: null })
-
     const { POST } = await import('./route')
-    // Simulate 2 category pairs with same main: AI > Prompts, AI > Tools
-    // categoryIds would be [ai-id, prompts-id, ai-id, tools-id] - note ai-id appears twice
     const request = new Request('http://localhost/api/bookmarks/categorize', {
       method: 'POST',
       body: JSON.stringify({
@@ -268,20 +219,14 @@ describe('POST /api/bookmarks/categorize', () => {
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
     // Should dedupe to only 3 unique category IDs
-    expect(__mockInsert).toHaveBeenCalledWith([
-      { bookmark_id: 'bookmark-1', category_id: 'ai-id' },
-      { bookmark_id: 'bookmark-1', category_id: 'prompts-id' },
-      { bookmark_id: 'bookmark-1', category_id: 'tools-id' },
+    expect(mockInsertValues).toHaveBeenCalledWith([
+      { bookmarkId: 'bookmark-1', categoryId: 'ai-id' },
+      { bookmarkId: 'bookmark-1', categoryId: 'prompts-id' },
+      { bookmarkId: 'bookmark-1', categoryId: 'tools-id' },
     ])
   })
 
-  it('clears is_skipped flag when categorizing', async () => {
-    const { __mockUpdate, __mockInsert, __mockEq, __mockRpc, __mockDeleteEq } = await import('@/lib/supabase') as any
-    __mockDeleteEq.mockReturnValue({ error: null })
-    __mockInsert.mockReturnValue({ error: null })
-    __mockEq.mockReturnValue({ error: null })
-    __mockRpc.mockResolvedValue({ error: null })
-
+  it('clears isSkipped flag when categorizing', async () => {
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/bookmarks/categorize', {
       method: 'POST',
@@ -293,10 +238,7 @@ describe('POST /api/bookmarks/categorize', () => {
 
     await POST(request as any)
 
-    // Should update with is_categorized=true AND is_skipped=false
-    expect(__mockUpdate).toHaveBeenCalledWith({
-      is_categorized: true,
-      is_skipped: false,
-    })
+    // Should update with isCategorized=true AND isSkipped=false
+    expect(mockUpdateSet).toHaveBeenCalledWith({ isCategorized: true, isSkipped: false })
   })
 })

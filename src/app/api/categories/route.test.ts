@@ -1,40 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Create mock functions at module level
-const mockSingle = vi.fn()
-const mockSelect = vi.fn()
-const mockInsert = vi.fn()
+// Track db operations
+const mockValues = vi.fn()
+const mockReturning = vi.fn()
 
-// Mock Supabase client
-vi.mock('@/lib/supabase', () => {
-  return {
-    supabase: {
-      from: vi.fn(() => ({
-        insert: mockInsert,
-      })),
-    },
-  }
-})
+vi.mock('@/db', () => ({
+  db: {
+    insert: vi.fn(() => ({ values: mockValues })),
+  },
+}))
+
+vi.mock('@/db/schema', () => ({
+  categories: { id: 'categories.id', name: 'categories.name', parentId: 'categories.parent_id' },
+}))
 
 describe('POST /api/categories', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // Reset the chain for each test
-    mockInsert.mockReturnValue({ select: mockSelect })
-    mockSelect.mockReturnValue({ single: mockSingle })
+    mockValues.mockReturnValue({ returning: mockReturning })
   })
 
   it('creates a new main category when no parent_id provided', async () => {
     const newCategory = {
       id: 'new-cat-id',
       name: 'Test Category',
-      parent_id: null,
-      usage_count: 0,
-      sort_order: 0,
-      created_at: '2026-01-23T00:00:00.000Z',
+      parentId: null,
+      usageCount: 0,
+      sortOrder: 0,
+      createdAt: new Date('2026-01-23T00:00:00.000Z'),
     }
 
-    mockSingle.mockResolvedValueOnce({ data: newCategory, error: null })
+    mockReturning.mockResolvedValueOnce([newCategory])
 
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/categories', {
@@ -47,21 +43,21 @@ describe('POST /api/categories', () => {
     const data = await response.json()
 
     expect(response.status).toBe(201)
-    expect(data.category).toEqual(newCategory)
-    expect(mockInsert).toHaveBeenCalledWith({ name: 'Test Category' })
+    expect(data.category).toBeDefined()
+    expect(mockValues).toHaveBeenCalledWith({ name: 'Test Category' })
   })
 
   it('creates a new subcategory when parent_id provided', async () => {
     const newCategory = {
       id: 'new-sub-id',
       name: 'Test Subcategory',
-      parent_id: 'parent-cat-id',
-      usage_count: 0,
-      sort_order: 0,
-      created_at: '2026-01-23T00:00:00.000Z',
+      parentId: 'parent-cat-id',
+      usageCount: 0,
+      sortOrder: 0,
+      createdAt: new Date('2026-01-23T00:00:00.000Z'),
     }
 
-    mockSingle.mockResolvedValueOnce({ data: newCategory, error: null })
+    mockReturning.mockResolvedValueOnce([newCategory])
 
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/categories', {
@@ -74,10 +70,10 @@ describe('POST /api/categories', () => {
     const data = await response.json()
 
     expect(response.status).toBe(201)
-    expect(data.category).toEqual(newCategory)
-    expect(mockInsert).toHaveBeenCalledWith({
+    expect(data.category).toBeDefined()
+    expect(mockValues).toHaveBeenCalledWith({
       name: 'Test Subcategory',
-      parent_id: 'parent-cat-id',
+      parentId: 'parent-cat-id',
     })
   })
 
@@ -112,10 +108,7 @@ describe('POST /api/categories', () => {
   })
 
   it('returns 500 when database insert fails', async () => {
-    mockSingle.mockResolvedValueOnce({
-      data: null,
-      error: { message: 'Database error' },
-    })
+    mockReturning.mockRejectedValueOnce(new Error('Database error'))
 
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/categories', {

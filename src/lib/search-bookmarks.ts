@@ -2,18 +2,20 @@
  * Search bookmarks using Postgres full-text search (fts column)
  */
 
-import { supabase } from './supabase'
+import { db } from '@/db'
+import { bookmarks } from '@/db/schema'
+import { and, eq, sql } from 'drizzle-orm'
 
 export interface SearchBookmarkResult {
   id: string
   url: string
   title: string | null
-  is_tweet: boolean | null
-  is_categorized: boolean | null
+  isTweet: boolean | null
+  isCategorized: boolean | null
   domain: string | null
   notes: string | null
-  og_image: string | null
-  add_date: string | null
+  ogImage: string | null
+  addDate: Date | null
 }
 
 /**
@@ -44,21 +46,35 @@ export function buildTsQuery(query: string): string {
  */
 export async function searchBookmarks(
   query: string
-): Promise<{ data: SearchBookmarkResult[] | null; error: Error | null }> {
+): Promise<SearchBookmarkResult[]> {
   const tsQuery = buildTsQuery(query)
 
   if (!tsQuery) {
-    return { data: [], error: null }
+    return []
   }
 
-  const { data, error } = await supabase
-    .from('bookmarks')
-    .select('id, url, title, is_tweet, is_categorized, domain, notes, og_image, add_date')
-    .eq('is_categorized', true)
-    .eq('is_keeper', false)
-    .eq('is_skipped', false)
-    .textSearch('fts', tsQuery)
-    .order('add_date', { ascending: false })
+  const results = await db
+    .select({
+      id: bookmarks.id,
+      url: bookmarks.url,
+      title: bookmarks.title,
+      isTweet: bookmarks.isTweet,
+      isCategorized: bookmarks.isCategorized,
+      domain: bookmarks.domain,
+      notes: bookmarks.notes,
+      ogImage: bookmarks.ogImage,
+      addDate: bookmarks.addDate,
+    })
+    .from(bookmarks)
+    .where(
+      and(
+        eq(bookmarks.isCategorized, true),
+        eq(bookmarks.isKeeper, false),
+        eq(bookmarks.isSkipped, false),
+        sql`fts @@ to_tsquery('english', ${tsQuery})`
+      )
+    )
+    .orderBy(sql`${bookmarks.addDate} DESC`)
 
-  return { data, error: error as Error | null }
+  return results
 }

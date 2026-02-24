@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/db'
+import { categories, type Category } from '@/db/schema'
 
 interface CreateCategoryRequest {
   name: string
@@ -17,22 +18,17 @@ export async function POST(request: Request) {
     }
 
     // Build insert object
-    const insertData: { name: string; parent_id?: string } = { name }
+    const insertData: { name: string; parentId?: string } = { name }
     if (body.parent_id) {
-      insertData.parent_id = body.parent_id
+      insertData.parentId = body.parent_id
     }
 
     // Insert into database
-    const { data: category, error } = await supabase
-      .from('categories')
-      .insert(insertData)
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Failed to create category:', error)
-      return NextResponse.json({ error: 'Failed to create category' }, { status: 500 })
-    }
+    const result = await db
+      .insert(categories)
+      .values(insertData)
+      .returning() as Category[]
+    const category = result[0]
 
     return NextResponse.json({ category }, { status: 201 })
   } catch (error) {

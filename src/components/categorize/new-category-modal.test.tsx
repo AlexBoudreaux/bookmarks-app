@@ -46,10 +46,10 @@ describe('NewCategoryModal', () => {
     const parentCategory = {
       id: 'parent-id',
       name: 'AI Dev',
-      parent_id: null,
-      usage_count: 5,
-      sort_order: 0,
-      created_at: '2026-01-23',
+      parentId: null,
+      usageCount: 5,
+      sortOrder: 0,
+      createdAt: '2026-01-23',
     }
 
     render(
@@ -70,10 +70,10 @@ describe('NewCategoryModal', () => {
     const newCategory = {
       id: 'new-id',
       name: 'Test Category',
-      parent_id: null,
-      usage_count: 0,
-      sort_order: 0,
-      created_at: '2026-01-23',
+      parentId: null,
+      usageCount: 0,
+      sortOrder: 0,
+      createdAt: '2026-01-23',
     }
 
     mockFetch.mockResolvedValueOnce({
@@ -112,18 +112,18 @@ describe('NewCategoryModal', () => {
     const parentCategory = {
       id: 'parent-id',
       name: 'AI Dev',
-      parent_id: null,
-      usage_count: 5,
-      sort_order: 0,
-      created_at: '2026-01-23',
+      parentId: null,
+      usageCount: 5,
+      sortOrder: 0,
+      createdAt: '2026-01-23',
     }
     const newCategory = {
       id: 'new-sub-id',
       name: 'New Subcat',
-      parent_id: 'parent-id',
-      usage_count: 0,
-      sort_order: 0,
-      created_at: '2026-01-23',
+      parentId: 'parent-id',
+      usageCount: 0,
+      sortOrder: 0,
+      createdAt: '2026-01-23',
     }
 
     mockFetch.mockResolvedValueOnce({
@@ -238,10 +238,10 @@ describe('NewCategoryModal', () => {
     const newCategory = {
       id: 'new-id',
       name: 'Enter Test',
-      parent_id: null,
-      usage_count: 0,
-      sort_order: 0,
-      created_at: '2026-01-23',
+      parentId: null,
+      usageCount: 0,
+      sortOrder: 0,
+      createdAt: '2026-01-23',
     }
 
     mockFetch.mockResolvedValueOnce({

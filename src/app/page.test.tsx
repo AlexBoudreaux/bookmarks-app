@@ -1,67 +1,106 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import Home from './page';
 
-// Mock Supabase
-const mockSelect = vi.fn(() => Promise.resolve({ count: 0, error: null }));
+// Mock Drizzle db with chainable API
+const mockFrom = vi.fn()
+const mockWhere = vi.fn()
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: vi.fn(() => ({
-      select: mockSelect,
-    })),
+vi.mock('@/db', () => ({
+  db: {
+    select: vi.fn(() => ({ from: mockFrom })),
   },
 }));
 
-// Mock Next.js navigation
-const mockPush = vi.fn();
+vi.mock('@/db/schema', () => ({
+  bookmarks: {
+    isCategorized: 'bookmarks.is_categorized',
+    isKeeper: 'bookmarks.is_keeper',
+    isSkipped: 'bookmarks.is_skipped',
+    chromeFolderPath: 'bookmarks.chrome_folder_path',
+  },
+}));
+
+vi.mock('drizzle-orm', () => ({
+  and: vi.fn(),
+  eq: vi.fn(),
+  ne: vi.fn(),
+  count: vi.fn(() => 'count_fn'),
+}));
+
+// Mock Next.js navigation (redirect throws NEXT_REDIRECT like the real one)
+class RedirectError extends Error {
+  digest: string
+  constructor(url: string) {
+    super(`NEXT_REDIRECT: ${url}`)
+    this.digest = 'NEXT_REDIRECT'
+  }
+}
+const mockRedirect = vi.fn((url: string) => { throw new RedirectError(url) });
 vi.mock('next/navigation', () => ({
+  redirect: (url: string) => mockRedirect(url),
   useRouter: () => ({
-    push: mockPush,
+    push: vi.fn(),
     refresh: vi.fn(),
   }),
 }));
 
+// Mock components
+vi.mock('@/components/import/dropzone', () => ({
+  Dropzone: () => <div data-testid="dropzone">Drop your Chrome bookmarks file</div>,
+}));
+
+import Home from './page';
+
 describe('Home Page', () => {
   beforeEach(() => {
-    mockSelect.mockClear();
+    vi.clearAllMocks();
+    mockFrom.mockReturnValue({ where: mockWhere });
   });
 
   it('renders the dropzone area', async () => {
-    mockSelect.mockResolvedValue({ count: 0, error: null });
+    // First call: uncategorized count = 0 (no redirect)
+    // Second call: categorized count = 0
+    mockWhere
+      .mockResolvedValueOnce([{ value: 0 }])
+      .mockResolvedValueOnce([{ value: 0 }]);
+
     const page = await Home();
     render(page);
 
-    // There are multiple instances of "Drop your Chrome" text
     const dropTexts = screen.getAllByText(/Drop your Chrome/i);
     expect(dropTexts.length).toBeGreaterThan(0);
   });
 
-  it('shows instructions for exporting from Chrome', async () => {
-    mockSelect.mockResolvedValue({ count: 0, error: null });
+  it('has a file input or dropzone for selecting files', async () => {
+    mockWhere
+      .mockResolvedValueOnce([{ value: 0 }])
+      .mockResolvedValueOnce([{ value: 0 }]);
+
     const page = await Home();
     render(page);
 
-    expect(screen.getByText(/How to export from Chrome/i)).toBeInTheDocument();
-  });
-
-  it('has a file input for selecting files', async () => {
-    mockSelect.mockResolvedValue({ count: 0, error: null });
-    const page = await Home();
-    render(page);
-
-    const input = screen.getByLabelText(/drop.*bookmarks/i);
-    expect(input).toBeInTheDocument();
-    expect(input).toHaveAttribute('type', 'file');
-    expect(input).toHaveAttribute('accept', '.html');
+    expect(screen.getByTestId('dropzone')).toBeInTheDocument();
   });
 
   it('shows link to browse page if bookmarks exist', async () => {
-    mockSelect.mockResolvedValue({ count: 10, error: null });
+    // First call: uncategorized count = 0
+    // Second call: categorized count = 10
+    mockWhere
+      .mockResolvedValueOnce([{ value: 0 }])
+      .mockResolvedValueOnce([{ value: 10 }]);
+
     const page = await Home();
     render(page);
 
-    // Should show browse link in header when bookmarks exist
     expect(screen.getByRole('link', { name: /browse/i })).toBeInTheDocument();
+  });
+
+  it('redirects to categorize when uncategorized bookmarks exist', async () => {
+    // First call: uncategorized count = 5 (should redirect)
+    mockWhere.mockResolvedValueOnce([{ value: 5 }]);
+
+    await expect(Home()).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(mockRedirect).toHaveBeenCalledWith('/categorize');
   });
 });

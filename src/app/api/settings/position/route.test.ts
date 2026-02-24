@@ -1,37 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock Supabase
-const mockSelect = vi.fn()
-const mockEq = vi.fn()
-const mockSingle = vi.fn()
-const mockUpsert = vi.fn()
+// Track db operations
+const mockSelectFrom = vi.fn()
+const mockSelectWhere = vi.fn()
+const mockInsertValues = vi.fn()
+const mockOnConflictDoUpdate = vi.fn()
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: (table: string) => {
-      if (table === 'settings') {
-        return {
-          select: mockSelect,
-          upsert: mockUpsert,
-        }
-      }
-      return {}
-    },
+vi.mock('@/db', () => ({
+  db: {
+    select: vi.fn(() => ({ from: mockSelectFrom })),
+    insert: vi.fn(() => ({ values: mockInsertValues })),
   },
+}))
+
+vi.mock('@/db/schema', () => ({
+  settings: { key: 'settings.key', value: 'settings.value', updatedAt: 'settings.updated_at' },
+}))
+
+vi.mock('drizzle-orm', () => ({
+  eq: vi.fn(),
 }))
 
 describe('GET /api/settings/position', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSelect.mockReturnValue({ eq: mockEq })
-    mockEq.mockReturnValue({ single: mockSingle })
+    mockSelectFrom.mockReturnValue({ where: mockSelectWhere })
   })
 
   it('returns saved position when it exists', async () => {
-    mockSingle.mockResolvedValue({
-      data: { key: 'categorize_position', value: { index: 42 } },
-      error: null,
-    })
+    mockSelectWhere.mockResolvedValue([
+      { value: { index: 42 } },
+    ])
 
     const { GET } = await import('./route')
     const response = await GET()
@@ -39,15 +38,10 @@ describe('GET /api/settings/position', () => {
 
     expect(response.status).toBe(200)
     expect(data.index).toBe(42)
-    expect(mockSelect).toHaveBeenCalledWith('value')
-    expect(mockEq).toHaveBeenCalledWith('key', 'categorize_position')
   })
 
   it('returns index 0 when no position saved', async () => {
-    mockSingle.mockResolvedValue({
-      data: null,
-      error: { code: 'PGRST116', message: 'Not found' },
-    })
+    mockSelectWhere.mockResolvedValue([])
 
     const { GET } = await import('./route')
     const response = await GET()
@@ -58,10 +52,7 @@ describe('GET /api/settings/position', () => {
   })
 
   it('returns 500 on database error', async () => {
-    mockSingle.mockResolvedValue({
-      data: null,
-      error: { code: 'UNKNOWN', message: 'Database error' },
-    })
+    mockSelectWhere.mockRejectedValue(new Error('Database error'))
 
     const { GET } = await import('./route')
     const response = await GET()
@@ -73,11 +64,11 @@ describe('GET /api/settings/position', () => {
 describe('POST /api/settings/position', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockInsertValues.mockReturnValue({ onConflictDoUpdate: mockOnConflictDoUpdate })
+    mockOnConflictDoUpdate.mockResolvedValue(undefined)
   })
 
   it('saves position to settings table', async () => {
-    mockUpsert.mockResolvedValue({ error: null })
-
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/settings/position', {
       method: 'POST',
@@ -90,14 +81,12 @@ describe('POST /api/settings/position', () => {
 
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
-    expect(mockUpsert).toHaveBeenCalledWith(
-      {
-        key: 'categorize_position',
-        value: { index: 15 },
-        updated_at: expect.any(String),
-      },
-      { onConflict: 'key' }
-    )
+    expect(mockInsertValues).toHaveBeenCalledWith({
+      key: 'categorize_position',
+      value: { index: 15 },
+      updatedAt: expect.any(Date),
+    })
+    expect(mockOnConflictDoUpdate).toHaveBeenCalled()
   })
 
   it('returns 400 when index is missing', async () => {
@@ -129,9 +118,7 @@ describe('POST /api/settings/position', () => {
   })
 
   it('returns 500 on database error', async () => {
-    mockUpsert.mockResolvedValue({
-      error: { code: 'UNKNOWN', message: 'Database error' },
-    })
+    mockOnConflictDoUpdate.mockRejectedValue(new Error('Database error'))
 
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/settings/position', {

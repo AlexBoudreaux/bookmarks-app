@@ -1,28 +1,35 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { Dropzone } from '@/components/import/dropzone'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/db'
+import { bookmarks } from '@/db/schema'
+import { and, eq, ne, count } from 'drizzle-orm'
 
 // Disable Next.js caching so counts are fresh
 export const dynamic = 'force-dynamic'
 
 export default async function ImportPage() {
   // Check counts for context
-  const { count: uncategorizedCount } = await supabase
-    .from('bookmarks')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_categorized', false)
-    .eq('is_keeper', false)
-    .eq('is_skipped', false)
-    .not('chrome_folder_path', 'eq', 'Archived Bookmarks')
+  const uncategorizedRows = await db
+    .select({ value: count() })
+    .from(bookmarks)
+    .where(
+      and(
+        eq(bookmarks.isCategorized, false),
+        eq(bookmarks.isKeeper, false),
+        eq(bookmarks.isSkipped, false),
+        ne(bookmarks.chromeFolderPath, 'Archived Bookmarks')
+      )
+    )
 
-  const { count: categorizedCount } = await supabase
-    .from('bookmarks')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_categorized', true)
+  const categorizedRows = await db
+    .select({ value: count() })
+    .from(bookmarks)
+    .where(eq(bookmarks.isCategorized, true))
 
-  const hasUncategorized = (uncategorizedCount ?? 0) > 0
-  const hasCategorized = (categorizedCount ?? 0) > 0
+  const uncategorizedCount = uncategorizedRows[0]?.value ?? 0
+  const hasUncategorized = uncategorizedCount > 0
+  const hasCategorized = (categorizedRows[0]?.value ?? 0) > 0
 
   return (
     <div className="relative min-h-screen bg-background">

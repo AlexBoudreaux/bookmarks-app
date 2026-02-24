@@ -2,33 +2,41 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Dropzone } from '@/components/import/dropzone';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/db';
+import { bookmarks } from '@/db/schema';
+import { and, eq, ne, count } from 'drizzle-orm';
 
 // Disable Next.js caching so bookmark count is always fresh
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
   // Check for uncategorized bookmarks (excluding keepers, skipped, and archived)
-  const { count: uncategorizedCount } = await supabase
-    .from('bookmarks')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_categorized', false)
-    .eq('is_keeper', false)
-    .eq('is_skipped', false)
-    .not('chrome_folder_path', 'eq', 'Archived Bookmarks');
+  const uncategorizedRows = await db
+    .select({ value: count() })
+    .from(bookmarks)
+    .where(
+      and(
+        eq(bookmarks.isCategorized, false),
+        eq(bookmarks.isKeeper, false),
+        eq(bookmarks.isSkipped, false),
+        ne(bookmarks.chromeFolderPath, 'Archived Bookmarks')
+      )
+    );
+
+  const uncategorizedCount = uncategorizedRows[0]?.value ?? 0;
 
   // If there are uncategorized bookmarks, go straight to categorize
-  if ((uncategorizedCount ?? 0) > 0) {
+  if (uncategorizedCount > 0) {
     redirect('/categorize');
   }
 
   // Check if user has any categorized bookmarks (to show Browse link)
-  const { count: categorizedCount } = await supabase
-    .from('bookmarks')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_categorized', true);
+  const categorizedRows = await db
+    .select({ value: count() })
+    .from(bookmarks)
+    .where(eq(bookmarks.isCategorized, true));
 
-  const hasCategorizedBookmarks = (categorizedCount ?? 0) > 0;
+  const hasCategorizedBookmarks = (categorizedRows[0]?.value ?? 0) > 0;
 
   return (
     <div className="relative min-h-screen bg-background">

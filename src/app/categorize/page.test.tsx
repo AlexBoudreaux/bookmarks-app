@@ -22,56 +22,46 @@ vi.mock('@/components/categorize/categorize-wrapper', () => ({
   ),
 }))
 
-// Track bookmark pagination calls to simulate pagination behavior
-let bookmarkRangeCallCount = 0
+const mockBookmarks = [
+  { id: '1', url: 'https://twitter.com/test/status/123', title: 'Test Tweet', isTweet: true, isCategorized: false, isKeeper: false, isSkipped: false },
+  { id: '2', url: 'https://github.com/example/repo', title: 'GitHub Repo', isTweet: false, isCategorized: false, isKeeper: false, isSkipped: false },
+]
 
-// Mock Supabase - needs to return a chainable builder
-const createMockBuilder = (tableName: string) => {
-  const mockBookmarks = [
-    { id: '1', url: 'https://twitter.com/test/status/123', title: 'Test Tweet', is_tweet: true, is_categorized: false, is_keeper: false, is_skipped: false },
-    { id: '2', url: 'https://github.com/example/repo', title: 'GitHub Repo', is_tweet: false, is_categorized: false, is_keeper: false, is_skipped: false },
-  ]
+const mockCategories = [
+  { id: '1', name: 'UI', parentId: null, usageCount: 100, sortOrder: 0, createdAt: new Date('2024-01-01') },
+  { id: '2', name: 'AI Dev', parentId: null, usageCount: 90, sortOrder: 1, createdAt: new Date('2024-01-01') },
+  { id: '1a', name: 'Components', parentId: '1', usageCount: 50, sortOrder: 0, createdAt: new Date('2024-01-01') },
+]
 
-  const mockCategories = [
-    { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
-    { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
-    { id: '1a', name: 'Components', parent_id: '1', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
-  ]
+let selectCallCount = 0
+const mockFrom = vi.fn()
 
-  const builder: any = {
-    select: vi.fn(() => builder),
-    eq: vi.fn(() => builder),
-    is: vi.fn(() => builder),
-    not: vi.fn(() => builder),
-    order: vi.fn(() => builder),
-    range: vi.fn(() => {
-      // For bookmarks, return data on first call, empty on second (to stop pagination)
-      if (tableName === 'bookmarks') {
-        bookmarkRangeCallCount++
-        return {
-          data: bookmarkRangeCallCount === 1 ? mockBookmarks : [],
-          error: null,
-        }
-      }
-      return { data: [], error: null }
-    }),
-  }
-
-  // For categories table, order() should return directly (no range)
-  if (tableName === 'categories') {
-    builder.order = vi.fn(() => ({
-      data: mockCategories,
-      error: null,
-    }))
-  }
-
-  return builder
-}
-
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: vi.fn((tableName: string) => createMockBuilder(tableName)),
+vi.mock('@/db', () => ({
+  db: {
+    select: vi.fn(() => ({ from: mockFrom })),
   },
+}))
+
+vi.mock('@/db/schema', () => ({
+  bookmarks: {
+    isCategorized: 'bookmarks.is_categorized',
+    isKeeper: 'bookmarks.is_keeper',
+    isSkipped: 'bookmarks.is_skipped',
+    chromeFolderPath: 'bookmarks.chrome_folder_path',
+    addDate: 'bookmarks.add_date',
+  },
+  categories: {
+    usageCount: 'categories.usage_count',
+    sortOrder: 'categories.sort_order',
+  },
+}))
+
+vi.mock('drizzle-orm', () => ({
+  and: vi.fn(),
+  eq: vi.fn(),
+  ne: vi.fn(),
+  asc: vi.fn(),
+  desc: vi.fn(),
 }))
 
 import CategorizePage from './page'
@@ -90,7 +80,27 @@ vi.mock('next/navigation', () => ({
 describe('CategorizePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    bookmarkRangeCallCount = 0 // Reset pagination counter
+    selectCallCount = 0
+
+    // The page makes 2 db.select() calls:
+    // 1. uncategorized bookmarks (with where + orderBy)
+    // 2. categories (with orderBy)
+    mockFrom.mockImplementation(() => {
+      selectCallCount++
+      if (selectCallCount === 1) {
+        // bookmarks query: select().from().where().orderBy()
+        return {
+          where: vi.fn(() => ({
+            orderBy: vi.fn().mockResolvedValue(mockBookmarks),
+          })),
+        }
+      } else {
+        // categories query: select().from().orderBy()
+        return {
+          orderBy: vi.fn().mockResolvedValue(mockCategories),
+        }
+      }
+    })
   })
 
   it('renders page header with navigation links', async () => {

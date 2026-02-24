@@ -1,7 +1,10 @@
 #!/usr/bin/env tsx
 
-import { createClient } from '@supabase/supabase-js'
+import { neon } from '@neondatabase/serverless'
+import { drizzle } from 'drizzle-orm/neon-http'
 import { readFileSync } from 'fs'
+import { pgTable, uuid, text, integer } from 'drizzle-orm/pg-core'
+import { isNull, eq, count, asc } from 'drizzle-orm'
 
 // Parse .env.local manually
 const envContent = readFileSync('.env.local', 'utf-8')
@@ -10,64 +13,57 @@ for (const line of envContent.split('\n')) {
   const match = line.match(/^([^#=]+)=(.+)$/)
   if (match) {
     const value = match[2].trim()
-    // Remove quotes if present
     envVars[match[1].trim()] = value.replace(/^["']|["']$/g, '')
   }
 }
 
-const supabaseUrl = envVars.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = envVars.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const databaseUrl = envVars.neon_DATABASE_URL
+if (!databaseUrl) {
+  console.error('neon_DATABASE_URL not found in .env.local')
+  process.exit(1)
+}
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+const sql = neon(databaseUrl)
+const db = drizzle(sql)
+
+const categories = pgTable('categories', {
+  id: uuid('id').primaryKey(),
+  name: text('name').notNull(),
+  parentId: uuid('parent_id'),
+  sortOrder: integer('sort_order'),
+})
 
 async function verifyCategories() {
-  // Get all main categories (parent_id is null)
-  const { data: mainCategories, error: mainError } = await supabase
-    .from('categories')
-    .select('id, name, sort_order')
-    .is('parent_id', null)
-    .order('sort_order')
+  const mainCategories = await db
+    .select({ id: categories.id, name: categories.name, sortOrder: categories.sortOrder })
+    .from(categories)
+    .where(isNull(categories.parentId))
+    .orderBy(asc(categories.sortOrder))
 
-  if (mainError) {
-    console.error('Error fetching main categories:', mainError)
-    process.exit(1)
-  }
+  console.log(`\nFound ${mainCategories.length} main categories:\n`)
 
-  console.log(`\nFound ${mainCategories?.length} main categories:\n`)
+  for (const mainCat of mainCategories) {
+    console.log(`${mainCat.sortOrder}. ${mainCat.name}`)
 
-  for (const mainCat of mainCategories || []) {
-    console.log(`${mainCat.sort_order}. ${mainCat.name}`)
+    const subCategories = await db
+      .select({ name: categories.name, sortOrder: categories.sortOrder })
+      .from(categories)
+      .where(eq(categories.parentId, mainCat.id))
+      .orderBy(asc(categories.sortOrder))
 
-    // Get subcategories
-    const { data: subCategories, error: subError } = await supabase
-      .from('categories')
-      .select('name, sort_order')
-      .eq('parent_id', mainCat.id)
-      .order('sort_order')
-
-    if (subError) {
-      console.error(`Error fetching subcategories for ${mainCat.name}:`, subError)
-      continue
-    }
-
-    if (subCategories && subCategories.length > 0) {
+    if (subCategories.length > 0) {
       for (const subCat of subCategories) {
-        console.log(`   ${subCat.sort_order}. ${subCat.name}`)
+        console.log(`   ${subCat.sortOrder}. ${subCat.name}`)
       }
     }
     console.log()
   }
 
-  // Get total count
-  const { count, error: countError } = await supabase
-    .from('categories')
-    .select('*', { count: 'exact', head: true })
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(categories)
 
-  if (countError) {
-    console.error('Error counting categories:', countError)
-  } else {
-    console.log(`Total categories (main + sub): ${count}\n`)
-  }
+  console.log(`Total categories (main + sub): ${total}\n`)
 }
 
 verifyCategories()

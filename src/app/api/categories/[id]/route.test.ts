@@ -1,51 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock Supabase
-const mockUpdate = vi.fn()
-const mockDelete = vi.fn()
-const mockEq = vi.fn()
-const mockSelect = vi.fn()
-const mockSingle = vi.fn()
+// Track db operations
+const mockUpdateSet = vi.fn()
+const mockUpdateWhere = vi.fn()
+const mockReturning = vi.fn()
+const mockDeleteWhere = vi.fn()
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: (table: string) => {
-      if (table === 'bookmark_categories') {
-        return {
-          delete: () => ({
-            eq: () => ({ error: null }),
-          }),
-        }
-      }
-      return {
-        update: mockUpdate,
-        delete: mockDelete,
-      }
-    },
+vi.mock('@/db', () => ({
+  db: {
+    update: vi.fn(() => ({ set: mockUpdateSet })),
+    delete: vi.fn(() => ({ where: mockDeleteWhere })),
   },
+}))
+
+vi.mock('@/db/schema', () => ({
+  categories: { id: 'categories.id', name: 'categories.name', parentId: 'categories.parent_id' },
+  bookmarkCategories: { categoryId: 'bookmark_categories.category_id' },
+}))
+
+vi.mock('drizzle-orm', () => ({
+  eq: vi.fn(),
 }))
 
 describe('Categories API [id]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    mockUpdate.mockReturnValue({
-      eq: mockEq,
-    })
-    mockEq.mockReturnValue({
-      select: mockSelect,
-    })
-    mockSelect.mockReturnValue({
-      single: mockSingle,
-    })
-    mockSingle.mockResolvedValue({
-      data: { id: '1', name: 'Updated Category', parent_id: null },
-      error: null,
-    })
+    // Default success path for update chain
+    mockUpdateSet.mockReturnValue({ where: mockUpdateWhere })
+    mockUpdateWhere.mockReturnValue({ returning: mockReturning })
+    mockReturning.mockResolvedValue([{ id: '1', name: 'Updated Category', parentId: null }])
 
-    mockDelete.mockReturnValue({
-      eq: () => ({ error: null }),
-    })
+    // Default success path for delete
+    mockDeleteWhere.mockResolvedValue(undefined)
   })
 
   describe('PATCH /api/categories/[id]', () => {
@@ -63,7 +50,7 @@ describe('Categories API [id]', () => {
 
       expect(response.status).toBe(200)
       expect(data.category.name).toBe('Updated Category')
-      expect(mockUpdate).toHaveBeenCalledWith({ name: 'Updated Category' })
+      expect(mockUpdateSet).toHaveBeenCalledWith({ name: 'Updated Category' })
     })
 
     it('returns 400 if name is empty', async () => {
@@ -95,10 +82,7 @@ describe('Categories API [id]', () => {
     })
 
     it('returns 500 on database error', async () => {
-      mockSingle.mockResolvedValue({
-        data: null,
-        error: { message: 'Database error' },
-      })
+      mockReturning.mockRejectedValue(new Error('Database error'))
 
       const { PATCH } = await import('./route')
 
@@ -130,6 +114,7 @@ describe('Categories API [id]', () => {
     })
 
     it('deletes subcategories first', async () => {
+      const { db } = await import('@/db')
       const { DELETE } = await import('./route')
 
       const request = new Request('http://localhost/api/categories/1', {
@@ -138,14 +123,12 @@ describe('Categories API [id]', () => {
 
       await DELETE(request, { params: Promise.resolve({ id: '1' }) })
 
-      // Should have deleted subcategories (eq called with parent_id)
-      expect(mockDelete).toHaveBeenCalled()
+      // Should have called delete multiple times (subcategories, bookmark_categories, and category itself)
+      expect(db.delete).toHaveBeenCalledTimes(3)
     })
 
     it('returns 500 on database error', async () => {
-      mockDelete.mockReturnValue({
-        eq: () => ({ error: { message: 'Database error' } }),
-      })
+      mockDeleteWhere.mockRejectedValue(new Error('Database error'))
 
       const { DELETE } = await import('./route')
 

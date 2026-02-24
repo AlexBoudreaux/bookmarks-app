@@ -1,27 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { buildTsQuery, searchBookmarks } from './search-bookmarks'
 
-// Mock Supabase client
-const mockTextSearch = vi.fn()
-const mockOrder = vi.fn()
+// Mock Drizzle db
+const mockFrom = vi.fn()
+const mockWhere = vi.fn()
+const mockOrderBy = vi.fn()
 
-vi.mock('./supabase', () => {
-  const createBuilder = () => {
-    const builder = {
-      select: vi.fn(() => builder),
-      eq: vi.fn(() => builder),
-      textSearch: mockTextSearch,
-      order: mockOrder,
-    }
-    return builder
-  }
+vi.mock('@/db', () => ({
+  db: {
+    select: vi.fn(() => ({ from: mockFrom })),
+  },
+}))
 
-  return {
-    supabase: {
-      from: vi.fn(() => createBuilder()),
-    },
-  }
-})
+vi.mock('@/db/schema', () => ({
+  bookmarks: {
+    id: 'bookmarks.id',
+    url: 'bookmarks.url',
+    title: 'bookmarks.title',
+    isTweet: 'bookmarks.is_tweet',
+    isCategorized: 'bookmarks.is_categorized',
+    isKeeper: 'bookmarks.is_keeper',
+    isSkipped: 'bookmarks.is_skipped',
+    domain: 'bookmarks.domain',
+    notes: 'bookmarks.notes',
+    ogImage: 'bookmarks.og_image',
+    addDate: 'bookmarks.add_date',
+  },
+}))
+
+vi.mock('drizzle-orm', () => ({
+  and: vi.fn(),
+  eq: vi.fn(),
+  sql: vi.fn(),
+}))
 
 describe('buildTsQuery', () => {
   it('converts single word to tsquery with prefix', () => {
@@ -61,64 +72,54 @@ describe('buildTsQuery', () => {
 describe('searchBookmarks', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockFrom.mockReturnValue({ where: mockWhere })
+    mockWhere.mockReturnValue({ orderBy: mockOrderBy })
   })
 
   it('returns empty array for empty query', async () => {
     const result = await searchBookmarks('')
-    expect(result.data).toEqual([])
-    expect(result.error).toBeNull()
+    expect(result).toEqual([])
   })
 
-  it('calls Supabase with correct parameters', async () => {
+  it('calls db with correct chain', async () => {
     const mockData = [
-      { id: '1', url: 'https://example.com', title: 'Test', is_tweet: false },
+      { id: '1', url: 'https://example.com', title: 'Test', isTweet: false },
     ]
-    mockTextSearch.mockReturnValue({
-      order: mockOrder,
-    })
-    mockOrder.mockResolvedValue({ data: mockData, error: null })
+    mockOrderBy.mockResolvedValue(mockData)
 
+    const { db } = await import('@/db')
     await searchBookmarks('react')
 
-    expect(mockTextSearch).toHaveBeenCalledWith('fts', 'react:*')
-    expect(mockOrder).toHaveBeenCalledWith('add_date', { ascending: false })
+    expect(db.select).toHaveBeenCalled()
+    expect(mockFrom).toHaveBeenCalled()
+    expect(mockWhere).toHaveBeenCalled()
+    expect(mockOrderBy).toHaveBeenCalled()
   })
 
-  it('returns search results from Supabase', async () => {
+  it('returns search results from Drizzle', async () => {
     const mockData = [
       {
         id: '1',
         url: 'https://example.com',
         title: 'React Tutorial',
-        is_tweet: false,
-        is_categorized: true,
+        isTweet: false,
+        isCategorized: true,
         domain: 'example.com',
         notes: null,
-        og_image: null,
-        add_date: '2024-01-01',
+        ogImage: null,
+        addDate: new Date('2024-01-01'),
       },
     ]
-    mockTextSearch.mockReturnValue({
-      order: mockOrder,
-    })
-    mockOrder.mockResolvedValue({ data: mockData, error: null })
+    mockOrderBy.mockResolvedValue(mockData)
 
     const result = await searchBookmarks('react')
 
-    expect(result.data).toEqual(mockData)
-    expect(result.error).toBeNull()
+    expect(result).toEqual(mockData)
   })
 
-  it('handles Supabase errors', async () => {
-    const mockError = new Error('Database error')
-    mockTextSearch.mockReturnValue({
-      order: mockOrder,
-    })
-    mockOrder.mockResolvedValue({ data: null, error: mockError })
+  it('handles Drizzle errors by throwing', async () => {
+    mockOrderBy.mockRejectedValue(new Error('Database error'))
 
-    const result = await searchBookmarks('react')
-
-    expect(result.data).toBeNull()
-    expect(result.error).toEqual(mockError)
+    await expect(searchBookmarks('react')).rejects.toThrow('Database error')
   })
 })

@@ -6,10 +6,7 @@ import { CategoryPicker } from './category-picker'
 import { TweetPreview } from './tweet-preview'
 import { LinkCard } from './link-card'
 import { NotesField } from './notes-field'
-import { Database } from '@/types/database'
-
-type Category = Database['public']['Tables']['categories']['Row']
-type Bookmark = Database['public']['Tables']['bookmarks']['Row']
+import type { Category, Bookmark } from '@/db/schema'
 
 interface CategoryPair {
   main: Category
@@ -372,10 +369,10 @@ export function CategorizeWrapper({
                 </div>
               )}
               <div className="h-full overflow-y-auto">
-                {currentBookmark && currentBookmark.is_tweet ? (
+                {currentBookmark && currentBookmark.isTweet ? (
                   <TweetPreview url={currentBookmark.url} />
                 ) : currentBookmark ? (
-                  <LinkCard title={currentBookmark.title || ''} url={currentBookmark.url} ogImage={currentBookmark.og_image} />
+                  <LinkCard title={currentBookmark.title || ''} url={currentBookmark.url} ogImage={currentBookmark.ogImage} />
                 ) : null}
               </div>
             </div>

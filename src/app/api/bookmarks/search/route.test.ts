@@ -36,10 +36,7 @@ describe('GET /api/bookmarks/search', () => {
   })
 
   it('calls searchBookmarks with query', async () => {
-    mockSearchBookmarks.mockResolvedValue({
-      data: [{ id: '1', title: 'React Hooks' }],
-      error: null,
-    })
+    mockSearchBookmarks.mockResolvedValue([{ id: '1', title: 'React Hooks' }])
 
     const { GET } = await import('./route')
     const request = new NextRequest('http://localhost:3000/api/bookmarks/search?q=react')
@@ -52,10 +49,7 @@ describe('GET /api/bookmarks/search', () => {
   })
 
   it('returns 500 on search error', async () => {
-    mockSearchBookmarks.mockResolvedValue({
-      data: null,
-      error: new Error('Database error'),
-    })
+    mockSearchBookmarks.mockRejectedValue(new Error('Database error'))
 
     const { GET } = await import('./route')
     const request = new NextRequest('http://localhost:3000/api/bookmarks/search?q=react')
@@ -67,7 +61,7 @@ describe('GET /api/bookmarks/search', () => {
   })
 
   it('handles URL-encoded query strings', async () => {
-    mockSearchBookmarks.mockResolvedValue({ data: [], error: null })
+    mockSearchBookmarks.mockResolvedValue([])
 
     const { GET } = await import('./route')
     const request = new NextRequest('http://localhost:3000/api/bookmarks/search?q=react%20hooks')

@@ -9,14 +9,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: [], error: null })
   }
 
-  const { data, error } = await searchBookmarks(query)
-
-  if (error) {
+  try {
+    const data = await searchBookmarks(query)
+    return NextResponse.json({ data, error: null })
+  } catch {
     return NextResponse.json(
       { data: null, error: 'Search failed' },
       { status: 500 }
     )
   }
-
-  return NextResponse.json({ data, error: null })
 }

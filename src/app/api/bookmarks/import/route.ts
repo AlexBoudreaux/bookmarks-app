@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/db'
+import { bookmarks, type NewBookmark } from '@/db/schema'
+import { inArray } from 'drizzle-orm'
 import { extractDomain } from '@/lib/extract-domain'
-import type { Database } from '@/types/database'
-
-type BookmarkInsert = Database['public']['Tables']['bookmarks']['Insert']
 
 interface ImportBookmark {
   url: string
@@ -17,9 +16,9 @@ interface ImportBookmark {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { bookmarks } = body
+    const { bookmarks: incoming } = body
 
-    if (!bookmarks || !Array.isArray(bookmarks)) {
+    if (!incoming || !Array.isArray(incoming)) {
       return NextResponse.json(
         { error: 'Invalid request: bookmarks array required' },
         { status: 400 }
@@ -28,53 +27,45 @@ export async function POST(request: Request) {
 
     // Deduplicate incoming bookmarks by URL
     const bookmarksMap = new Map<string, ImportBookmark>()
-    for (const bookmark of bookmarks as ImportBookmark[]) {
+    for (const bookmark of incoming as ImportBookmark[]) {
       bookmarksMap.set(bookmark.url, bookmark)
     }
     const incomingUrls = Array.from(bookmarksMap.keys())
 
     // Check which URLs already exist in the database
-    const { data: existingBookmarks, error: fetchError } = await supabase
-      .from('bookmarks')
-      .select('url')
-      .in('url', incomingUrls)
+    const existingBookmarks = await db
+      .select({ url: bookmarks.url })
+      .from(bookmarks)
+      .where(inArray(bookmarks.url, incomingUrls))
 
-    if (fetchError) {
-      console.error('Supabase fetch error:', fetchError)
-      return NextResponse.json(
-        { error: 'Failed to check existing bookmarks', details: fetchError.message },
-        { status: 500 }
-      )
-    }
-
-    const existingUrls = new Set(existingBookmarks?.map(b => b.url) || [])
+    const existingUrls = new Set(existingBookmarks.map(b => b.url))
 
     // Only insert bookmarks that don't already exist
-    const bookmarksToInsert: BookmarkInsert[] = []
+    const bookmarksToInsert: NewBookmark[] = []
     for (const [url, bookmark] of bookmarksMap) {
       if (existingUrls.has(url)) {
         continue // Skip existing bookmarks to preserve categorization
       }
 
-      let addDateIso: string | null = null
+      let addDateValue: Date | null = null
       if (bookmark.addDate) {
         if (typeof bookmark.addDate === 'string') {
-          addDateIso = bookmark.addDate
+          addDateValue = new Date(bookmark.addDate)
         } else if (bookmark.addDate instanceof Date) {
-          addDateIso = bookmark.addDate.toISOString()
+          addDateValue = bookmark.addDate
         }
       }
 
       bookmarksToInsert.push({
         url: bookmark.url,
         title: bookmark.title,
-        add_date: addDateIso,
-        chrome_folder_path: bookmark.folderPath,
+        addDate: addDateValue,
+        chromeFolderPath: bookmark.folderPath,
         domain: extractDomain(bookmark.url),
-        is_tweet: bookmark.isTweet,
-        is_keeper: bookmark.isKeeper,
-        is_categorized: false,
-        is_skipped: false,
+        isTweet: bookmark.isTweet,
+        isKeeper: bookmark.isKeeper,
+        isCategorized: false,
+        isSkipped: false,
       })
     }
 
@@ -88,22 +79,14 @@ export async function POST(request: Request) {
     }
 
     // Insert only new bookmarks
-    const { data, error } = await supabase
-      .from('bookmarks')
-      .insert(bookmarksToInsert)
-      .select()
-
-    if (error) {
-      console.error('Supabase error:', error)
-      return NextResponse.json(
-        { error: 'Failed to save bookmarks', details: error.message },
-        { status: 500 }
-      )
-    }
+    const inserted = await db
+      .insert(bookmarks)
+      .values(bookmarksToInsert)
+      .returning()
 
     return NextResponse.json({
       success: true,
-      imported: data?.length || 0,
+      imported: inserted.length,
       skipped: existingUrls.size,
     })
   } catch (error) {

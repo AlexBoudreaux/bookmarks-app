@@ -1,5 +1,7 @@
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/db'
+import { bookmarks, categories, bookmarkCategories, type Bookmark, type Category, type BookmarkCategory } from '@/db/schema'
+import { and, eq, desc } from 'drizzle-orm'
 import { BrowseContent } from '@/components/browse/browse-content'
 import { ExportButton } from '@/components/browse/export-button'
 
@@ -7,24 +9,31 @@ export const dynamic = 'force-dynamic'
 
 export default async function BrowsePage() {
   // Fetch categorized bookmarks (not keepers, not skipped)
-  const { data: bookmarks } = await supabase
-    .from('bookmarks')
-    .select('*')
-    .eq('is_categorized', true)
-    .eq('is_keeper', false)
-    .eq('is_skipped', false)
-    .order('add_date', { ascending: false })
+  const allBookmarks = await db
+    .select()
+    .from(bookmarks)
+    .where(
+      and(
+        eq(bookmarks.isCategorized, true),
+        eq(bookmarks.isKeeper, false),
+        eq(bookmarks.isSkipped, false)
+      )
+    )
+    .orderBy(desc(bookmarks.addDate)) as Bookmark[]
 
   // Fetch all categories (main and sub)
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('*')
-    .order('usage_count', { ascending: false })
+  const allCategories = await db
+    .select()
+    .from(categories)
+    .orderBy(desc(categories.usageCount)) as Category[]
 
   // Fetch bookmark_categories junction table for filtering
-  const { data: bookmarkCategories } = await supabase
-    .from('bookmark_categories')
-    .select('bookmark_id, category_id')
+  const allBookmarkCategories = await db
+    .select({
+      bookmarkId: bookmarkCategories.bookmarkId,
+      categoryId: bookmarkCategories.categoryId,
+    })
+    .from(bookmarkCategories) as BookmarkCategory[]
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -57,9 +66,9 @@ export default async function BrowsePage() {
       {/* Main Content */}
       <main className="pt-14">
         <BrowseContent
-          categories={categories || []}
-          bookmarks={bookmarks || []}
-          bookmarkCategories={bookmarkCategories || []}
+          categories={allCategories}
+          bookmarks={allBookmarks}
+          bookmarkCategories={allBookmarkCategories}
         />
       </main>
     </div>

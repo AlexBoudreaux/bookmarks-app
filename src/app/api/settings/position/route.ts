@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/db'
+import { settings } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 
 const SETTINGS_KEY = 'categorize_position'
 
@@ -9,25 +11,17 @@ interface PositionValue {
 
 export async function GET() {
   try {
-    const { data, error } = await supabase
-      .from('settings')
-      .select('value')
-      .eq('key', SETTINGS_KEY)
-      .single()
+    const rows = await db
+      .select({ value: settings.value })
+      .from(settings)
+      .where(eq(settings.key, SETTINGS_KEY))
+    const row = rows[0]
 
-    if (error) {
-      // PGRST116 means "Row not found", return default position
-      if (error.code === 'PGRST116') {
-        return NextResponse.json({ index: 0 })
-      }
-      console.error('Failed to load position:', error)
-      return NextResponse.json(
-        { error: 'Failed to load position' },
-        { status: 500 }
-      )
+    if (!row) {
+      return NextResponse.json({ index: 0 })
     }
 
-    const value = data?.value as PositionValue | null
+    const value = row.value as PositionValue | null
     return NextResponse.json({ index: value?.index ?? 0 })
   } catch (error) {
     console.error('Error in get position route:', error)
@@ -56,24 +50,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { error } = await supabase
-      .from('settings')
-      .upsert(
-        {
-          key: SETTINGS_KEY,
+    await db
+      .insert(settings)
+      .values({
+        key: SETTINGS_KEY,
+        value: { index },
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: settings.key,
+        set: {
           value: { index },
-          updated_at: new Date().toISOString(),
+          updatedAt: new Date(),
         },
-        { onConflict: 'key' }
-      )
-
-    if (error) {
-      console.error('Failed to save position:', error)
-      return NextResponse.json(
-        { error: 'Failed to save position' },
-        { status: 500 }
-      )
-    }
+      })
 
     return NextResponse.json({ success: true })
   } catch (error) {

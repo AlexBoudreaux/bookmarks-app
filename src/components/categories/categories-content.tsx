@@ -12,15 +12,15 @@ import {
 interface Category {
   id: string
   name: string
-  parent_id: string | null
-  usage_count: number | null
-  sort_order: number | null
-  created_at: string | null
+  parentId: string | null
+  usageCount: number | null
+  sortOrder: number | null
+  createdAt: Date | null
 }
 
 interface BookmarkCategory {
-  bookmark_id: string
-  category_id: string
+  bookmarkId: string
+  categoryId: string
 }
 
 interface CategoriesContentProps {
@@ -49,14 +49,14 @@ export function CategoriesContent({
   const bookmarkCountMap = useMemo(() => {
     const map = new Map<string, number>()
     for (const bc of bookmarkCategories) {
-      map.set(bc.category_id, (map.get(bc.category_id) || 0) + 1)
+      map.set(bc.categoryId, (map.get(bc.categoryId) || 0) + 1)
     }
     return map
   }, [bookmarkCategories])
 
   // Get subcategories for a main category
   const getSubcategories = (mainId: string) => {
-    return categories.filter(c => c.parent_id === mainId)
+    return categories.filter(c => c.parentId === mainId)
   }
 
   // Get bookmark count for a category (including subcategories for main categories)
@@ -76,8 +76,8 @@ export function CategoriesContent({
   // Main categories sorted by sort_order
   const mainCategories = useMemo(() => {
     return categories
-      .filter(c => c.parent_id === null)
-      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+      .filter(c => c.parentId === null)
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
   }, [categories])
 
   // Focus input when editing
@@ -156,7 +156,7 @@ export function CategoriesContent({
       if (response.ok) {
         // Remove category and its subcategories from state
         setCategories(prev =>
-          prev.filter(c => c.id !== deleteConfirmId && c.parent_id !== deleteConfirmId)
+          prev.filter(c => c.id !== deleteConfirmId && c.parentId !== deleteConfirmId)
         )
       }
     } catch (error) {

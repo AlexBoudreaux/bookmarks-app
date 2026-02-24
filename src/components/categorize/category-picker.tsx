@@ -1,10 +1,8 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { Database } from '@/types/database'
+import type { Category } from '@/db/schema'
 import { NewCategoryModal } from './new-category-modal'
-
-type Category = Database['public']['Tables']['categories']['Row']
 
 type PickerState = 'main' | 'subcategory' | 'ready'
 
@@ -60,26 +58,26 @@ export function CategoryPicker({
     onCategoryCreated?.(newCategory)
 
     // If we created a main category while in main view, select it
-    if (state === 'main' && !newCategory.parent_id) {
+    if (state === 'main' && !newCategory.parentId) {
       handleMainCategorySelect(newCategory)
     }
     // If we created a subcategory while in subcategory view, select it
-    else if (state === 'subcategory' && newCategory.parent_id === selectedMain?.id) {
+    else if (state === 'subcategory' && newCategory.parentId === selectedMain?.id) {
       handleSubcategorySelect(newCategory)
     }
   }
 
   // Get main categories (no parent)
   const mainCategories = categories
-    .filter(c => c.parent_id === null)
-    .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
+    .filter(c => c.parentId === null)
+    .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
     .slice(0, 10)
 
   // Get all subcategories of selected main category (for pagination)
   const allSubcategories = selectedMain
     ? categories
-        .filter(c => c.parent_id === selectedMain.id)
-        .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
+        .filter(c => c.parentId === selectedMain.id)
+        .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
     : []
 
   // Calculate pagination

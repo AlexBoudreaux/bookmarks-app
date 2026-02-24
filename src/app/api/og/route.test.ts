@@ -6,23 +6,29 @@ vi.mock('open-graph-scraper', () => ({
   default: mockOgs,
 }))
 
-// Mock Supabase
-const mockUpdate = vi.fn()
-const mockEq = vi.fn()
+// Track db operations
+const mockSet = vi.fn()
+const mockWhere = vi.fn()
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: vi.fn(() => ({
-      update: mockUpdate.mockReturnValue({
-        eq: mockEq,
-      }),
-    })),
+vi.mock('@/db', () => ({
+  db: {
+    update: vi.fn(() => ({ set: mockSet })),
   },
+}))
+
+vi.mock('@/db/schema', () => ({
+  bookmarks: { id: 'bookmarks.id', ogImage: 'bookmarks.og_image' },
+}))
+
+vi.mock('drizzle-orm', () => ({
+  eq: vi.fn(),
 }))
 
 describe('POST /api/og', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSet.mockReturnValue({ where: mockWhere })
+    mockWhere.mockResolvedValue(undefined)
   })
 
   it('returns 400 if url is missing', async () => {
@@ -65,7 +71,6 @@ describe('POST /api/og', () => {
         success: true,
       },
     })
-    mockEq.mockReturnValue({ error: null })
 
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/og', {
@@ -93,7 +98,6 @@ describe('POST /api/og', () => {
         success: true,
       },
     })
-    mockEq.mockReturnValue({ error: null })
 
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/og', {
@@ -110,7 +114,7 @@ describe('POST /api/og', () => {
     expect(data.image).toBe('https://example.com/twitter-image.jpg')
   })
 
-  it('caches og_image to bookmarks table when bookmarkId provided', async () => {
+  it('caches ogImage to bookmarks table when bookmarkId provided', async () => {
     mockOgs.mockResolvedValue({
       error: false,
       result: {
@@ -119,7 +123,6 @@ describe('POST /api/og', () => {
         success: true,
       },
     })
-    mockEq.mockReturnValue({ error: null })
 
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/og', {
@@ -133,8 +136,8 @@ describe('POST /api/og', () => {
     const response = await POST(request as any)
     await response.json()
 
-    expect(mockUpdate).toHaveBeenCalledWith({ og_image: 'https://example.com/image.jpg' })
-    expect(mockEq).toHaveBeenCalledWith('id', 'test-bookmark-id')
+    expect(mockSet).toHaveBeenCalledWith({ ogImage: 'https://example.com/image.jpg' })
+    expect(mockWhere).toHaveBeenCalled()
   })
 
   it('does not cache if no bookmarkId provided', async () => {
@@ -155,7 +158,8 @@ describe('POST /api/og', () => {
 
     await POST(request as any)
 
-    expect(mockUpdate).not.toHaveBeenCalled()
+    const { db } = await import('@/db')
+    expect(db.update).not.toHaveBeenCalled()
   })
 
   it('returns 500 if fetch fails', async () => {
@@ -185,7 +189,6 @@ describe('POST /api/og', () => {
         success: true,
       },
     })
-    mockEq.mockReturnValue({ error: null })
 
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/og', {
@@ -229,7 +232,7 @@ describe('POST /api/og', () => {
         success: true,
       },
     })
-    mockEq.mockReturnValue({ error: { message: 'DB error' } })
+    mockWhere.mockRejectedValue(new Error('DB error'))
 
     const { POST } = await import('./route')
     const request = new Request('http://localhost/api/og', {

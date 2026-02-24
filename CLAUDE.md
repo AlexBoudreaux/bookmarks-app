@@ -18,12 +18,12 @@ npm run build    # Production build
 npm run lint     # ESLint
 ```
 
-### Supabase
+### Database (Drizzle + Neon)
 
 ```bash
-supabase db push              # Push migrations to remote
-supabase db diff -f <name>    # Generate migration from schema changes
-supabase gen types typescript # Generate TypeScript types from DB
+npm run db:push      # Push schema changes to Neon
+npm run db:generate  # Generate migration files from schema changes
+npm run db:studio    # Open Drizzle Studio (visual DB browser)
 ```
 
 ### shadcn/ui
@@ -40,7 +40,7 @@ Personal bookmark categorization app. Import Chrome bookmarks, categorize via ke
 
 - Next.js 16 (App Router) + TypeScript
 - Tailwind CSS v4 + shadcn/ui (new-york style, dark mode only)
-- Supabase (Postgres + pgvector for semantic search)
+- Neon Postgres + Drizzle ORM (type-safe queries, FTS via tsvector)
 - react-tweet for tweet embeds (no API key)
 - Vercel deployment
 
@@ -54,24 +54,25 @@ src/
     /browse      # Filter + search
     /categories  # Category management
     /api         # API routes
+  db/
+    schema.ts    # Drizzle schema (all tables + exported types)
+    index.ts     # Drizzle client (Neon HTTP driver)
   lib/
-    supabase.ts  # Supabase client
     utils.ts     # cn() helper for shadcn
   components/
     ui/          # shadcn components
-supabase/
-  migrations/    # SQL migrations
+drizzle.config.ts  # Drizzle Kit config
 ```
 
 ### Database Schema
 
-Four tables: `bookmarks`, `categories` (hierarchical), `settings` (key-value), `bookmark_categories` (junction). Full-text search via `fts` column. See `supabase/migrations/001_initial_schema.sql` for details.
+Four tables: `bookmarks`, `categories` (hierarchical), `settings` (key-value), `bookmark_categories` (junction). Full-text search via `fts` tsvector column. Schema defined in `src/db/schema.ts`. FTS column and partial indexes managed via custom SQL (not Drizzle declarative).
 
 ### Key Concepts
 
 - **Boundary**: Divides Chrome bookmarks into "keepers" (before) and "to categorize" (after). Set by folder name + last URL.
 - **Categories**: Hierarchical (main + subcategory). Sorted by usage count. Keys 1-9, 0 map to top 10 most used.
-- **Skipped bookmarks**: Marked `is_skipped=true`, excluded from browse and re-import.
+- **Skipped bookmarks**: Marked `isSkipped=true`, excluded from browse and re-import.
 
 ## Conventions
 
@@ -123,9 +124,9 @@ This is a **production-quality SaaS product**, not a beta side project. Every sc
 
 **Before implementing anything involving external services:**
 
-1. **Supabase**: WebSearch for current docs. Query syntax, RLS policies, and edge functions change. Don't trust internal knowledge.
+1. **Drizzle ORM**: WebSearch for current docs. API evolves. Check drizzle-orm and drizzle-kit changelogs.
 
-2. **OpenAI/Embeddings**: WebSearch for current API. Models deprecate, dimensions change, pricing shifts.
+2. **Neon**: WebSearch for current docs. Serverless driver API and connection pooling details change.
 
 3. **react-tweet**: WebSearch for current usage. Twitter/X API changes frequently.
 
@@ -175,7 +176,7 @@ Use Task tool with subagents for:
 
 ### Don't Assume
 
-- Don't assume Supabase queries work without testing
+- Don't assume DB queries work without testing
 - Don't assume keyboard shortcuts work without testing
 - Don't assume parsing works without edge case tests
 - Don't assume UI looks right without screenshot verification
@@ -192,7 +193,7 @@ Use Task tool with subagents for:
 - Tweet ID extraction
 - Export to Chrome HTML formatter
 - Category sorting logic
-- Supabase query helpers
+- Drizzle query helpers
 - Search logic
 - Keyboard shortcut state machine
 

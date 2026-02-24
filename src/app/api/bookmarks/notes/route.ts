@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/db'
+import { bookmarks } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,18 +14,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { error } = await supabase
-      .from('bookmarks')
-      .update({ notes: notes ?? null })
-      .eq('id', bookmarkId)
-
-    if (error) {
-      console.error('Failed to update notes:', error)
-      return NextResponse.json(
-        { error: 'Failed to update notes' },
-        { status: 500 }
-      )
-    }
+    await db
+      .update(bookmarks)
+      .set({ notes: notes ?? null })
+      .where(eq(bookmarks.id, bookmarkId))
 
     return NextResponse.json({ success: true })
   } catch (error) {

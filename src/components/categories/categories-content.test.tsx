@@ -35,21 +35,21 @@ vi.mock('@hello-pangea/dnd', () => ({
 }))
 
 const mockCategories = [
-  { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: null },
-  { id: '2', name: 'Landing Pages', parent_id: '1', usage_count: 50, sort_order: 0, created_at: null },
-  { id: '3', name: 'Components', parent_id: '1', usage_count: 30, sort_order: 1, created_at: null },
-  { id: '4', name: 'AI Dev', parent_id: null, usage_count: 80, sort_order: 1, created_at: null },
-  { id: '5', name: 'Agents', parent_id: '4', usage_count: 40, sort_order: 0, created_at: null },
-  { id: '6', name: 'LLM Stack', parent_id: '4', usage_count: 20, sort_order: 1, created_at: null },
+  { id: '1', name: 'UI', parentId: null, usageCount: 100, sortOrder: 0, createdAt: null },
+  { id: '2', name: 'Landing Pages', parentId: '1', usageCount: 50, sortOrder: 0, createdAt: null },
+  { id: '3', name: 'Components', parentId: '1', usageCount: 30, sortOrder: 1, createdAt: null },
+  { id: '4', name: 'AI Dev', parentId: null, usageCount: 80, sortOrder: 1, createdAt: null },
+  { id: '5', name: 'Agents', parentId: '4', usageCount: 40, sortOrder: 0, createdAt: null },
+  { id: '6', name: 'LLM Stack', parentId: '4', usageCount: 20, sortOrder: 1, createdAt: null },
 ]
 
 const mockBookmarkCategories = [
-  { bookmark_id: 'b1', category_id: '2' },
-  { bookmark_id: 'b2', category_id: '2' },
-  { bookmark_id: 'b3', category_id: '3' },
-  { bookmark_id: 'b4', category_id: '5' },
-  { bookmark_id: 'b5', category_id: '5' },
-  { bookmark_id: 'b6', category_id: '5' },
+  { bookmarkId: 'b1', categoryId: '2' },
+  { bookmarkId: 'b2', categoryId: '2' },
+  { bookmarkId: 'b3', categoryId: '3' },
+  { bookmarkId: 'b4', categoryId: '5' },
+  { bookmarkId: 'b5', categoryId: '5' },
+  { bookmarkId: 'b6', categoryId: '5' },
 ]
 
 describe('CategoriesContent', () => {

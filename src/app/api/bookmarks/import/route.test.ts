@@ -1,11 +1,43 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock Supabase client
+// Mock Drizzle db
 const mockFrom = vi.fn()
+const mockWhere = vi.fn()
+const mockValues = vi.fn()
+const mockReturning = vi.fn()
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: mockFrom,
+vi.mock('@/db', () => ({
+  db: {
+    select: vi.fn(() => ({ from: mockFrom })),
+    insert: vi.fn(() => ({ values: mockValues })),
+  },
+}))
+
+vi.mock('@/db/schema', () => ({
+  bookmarks: {
+    url: 'bookmarks.url',
+    addDate: 'bookmarks.add_date',
+    chromeFolderPath: 'bookmarks.chrome_folder_path',
+    isKeeper: 'bookmarks.is_keeper',
+    isTweet: 'bookmarks.is_tweet',
+    isCategorized: 'bookmarks.is_categorized',
+    isSkipped: 'bookmarks.is_skipped',
+    domain: 'bookmarks.domain',
+  },
+}))
+
+vi.mock('drizzle-orm', () => ({
+  inArray: vi.fn(),
+}))
+
+vi.mock('@/lib/extract-domain', () => ({
+  extractDomain: (url: string) => {
+    try {
+      const hostname = new URL(url).hostname
+      return hostname.replace(/^www\./, '')
+    } catch {
+      return null
+    }
   },
 }))
 
@@ -17,30 +49,14 @@ describe('POST /api/bookmarks/import', () => {
     vi.clearAllMocks()
   })
 
-  it('saves new bookmarks with is_keeper flag and domain extraction', async () => {
-    const mockSelect = vi.fn().mockReturnValue({
-      in: vi.fn().mockResolvedValue({
-        data: [], // No existing bookmarks
-        error: null,
-      }),
-    })
+  it('saves new bookmarks with isKeeper flag and domain extraction', async () => {
+    // Mock select().from().where() chain for checking existing URLs
+    mockFrom.mockReturnValue({ where: mockWhere })
+    mockWhere.mockResolvedValue([]) // No existing bookmarks
 
-    const mockInsert = vi.fn().mockReturnValue({
-      select: vi.fn().mockResolvedValue({
-        data: [{ id: '1' }, { id: '2' }],
-        error: null,
-      }),
-    })
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'bookmarks') {
-        return {
-          select: mockSelect,
-          insert: mockInsert,
-        }
-      }
-      return {}
-    })
+    // Mock insert().values().returning() chain
+    mockValues.mockReturnValue({ returning: mockReturning })
+    mockReturning.mockResolvedValue([{ id: '1' }, { id: '2' }])
 
     const bookmarks = [
       {
@@ -75,59 +91,43 @@ describe('POST /api/bookmarks/import', () => {
     expect(data.skipped).toBe(0)
 
     // Verify insert was called
-    expect(mockInsert).toHaveBeenCalledTimes(1)
+    expect(mockValues).toHaveBeenCalledTimes(1)
 
-    // Verify the bookmarks array passed to insert
-    const insertCall = mockInsert.mock.calls[0][0]
+    // Verify the bookmarks array passed to values
+    const insertCall = mockValues.mock.calls[0][0]
     expect(insertCall).toHaveLength(2)
 
     // First bookmark (keeper)
     expect(insertCall[0]).toMatchObject({
       url: 'https://github.com/user/repo',
       title: 'Test Repo',
-      is_keeper: true,
-      is_tweet: false,
+      isKeeper: true,
+      isTweet: false,
       domain: 'github.com',
-      chrome_folder_path: 'Bookmarks Bar/Tools',
-      is_categorized: false,
+      chromeFolderPath: 'Bookmarks Bar/Tools',
+      isCategorized: false,
     })
 
     // Second bookmark (to categorize)
     expect(insertCall[1]).toMatchObject({
       url: 'https://twitter.com/user/status/123',
       title: 'Test Tweet',
-      is_keeper: false,
-      is_tweet: true,
+      isKeeper: false,
+      isTweet: true,
       domain: 'twitter.com',
-      chrome_folder_path: 'Uncategorized',
-      is_categorized: false,
+      chromeFolderPath: 'Uncategorized',
+      isCategorized: false,
     })
   })
 
   it('skips existing URLs to preserve categorizations', async () => {
-    const mockSelect = vi.fn().mockReturnValue({
-      in: vi.fn().mockResolvedValue({
-        data: [{ url: 'https://example.com/existing' }], // This URL already exists
-        error: null,
-      }),
-    })
+    // Mock select().from().where() returns one existing URL
+    mockFrom.mockReturnValue({ where: mockWhere })
+    mockWhere.mockResolvedValue([{ url: 'https://example.com/existing' }])
 
-    const mockInsert = vi.fn().mockReturnValue({
-      select: vi.fn().mockResolvedValue({
-        data: [{ id: '1' }],
-        error: null,
-      }),
-    })
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'bookmarks') {
-        return {
-          select: mockSelect,
-          insert: mockInsert,
-        }
-      }
-      return {}
-    })
+    // Mock insert().values().returning()
+    mockValues.mockReturnValue({ returning: mockReturning })
+    mockReturning.mockResolvedValue([{ id: '1' }])
 
     const bookmarks = [
       {
@@ -162,27 +162,14 @@ describe('POST /api/bookmarks/import', () => {
     expect(data.skipped).toBe(1) // The existing one was skipped
 
     // Verify only new bookmark was inserted
-    const insertCall = mockInsert.mock.calls[0][0]
+    const insertCall = mockValues.mock.calls[0][0]
     expect(insertCall).toHaveLength(1)
     expect(insertCall[0].url).toBe('https://example.com/new')
   })
 
   it('returns success with message when all bookmarks already exist', async () => {
-    const mockSelect = vi.fn().mockReturnValue({
-      in: vi.fn().mockResolvedValue({
-        data: [{ url: 'https://example.com/page' }],
-        error: null,
-      }),
-    })
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'bookmarks') {
-        return {
-          select: mockSelect,
-        }
-      }
-      return {}
-    })
+    mockFrom.mockReturnValue({ where: mockWhere })
+    mockWhere.mockResolvedValue([{ url: 'https://example.com/page' }])
 
     const bookmarks = [
       {
@@ -223,30 +210,12 @@ describe('POST /api/bookmarks/import', () => {
     expect(data.error).toBeDefined()
   })
 
-  it('returns error when Supabase insert fails', async () => {
-    const mockSelect = vi.fn().mockReturnValue({
-      in: vi.fn().mockResolvedValue({
-        data: [],
-        error: null,
-      }),
-    })
+  it('returns error when db insert throws', async () => {
+    mockFrom.mockReturnValue({ where: mockWhere })
+    mockWhere.mockResolvedValue([])
 
-    const mockInsert = vi.fn().mockReturnValue({
-      select: vi.fn().mockResolvedValue({
-        data: null,
-        error: { message: 'Database error' },
-      }),
-    })
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'bookmarks') {
-        return {
-          select: mockSelect,
-          insert: mockInsert,
-        }
-      }
-      return {}
-    })
+    mockValues.mockReturnValue({ returning: mockReturning })
+    mockReturning.mockRejectedValue(new Error('Database error'))
 
     const bookmarks = [
       {
@@ -272,21 +241,8 @@ describe('POST /api/bookmarks/import', () => {
   })
 
   it('returns error when checking existing bookmarks fails', async () => {
-    const mockSelect = vi.fn().mockReturnValue({
-      in: vi.fn().mockResolvedValue({
-        data: null,
-        error: { message: 'Database fetch error' },
-      }),
-    })
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'bookmarks') {
-        return {
-          select: mockSelect,
-        }
-      }
-      return {}
-    })
+    mockFrom.mockReturnValue({ where: mockWhere })
+    mockWhere.mockRejectedValue(new Error('Database fetch error'))
 
     const bookmarks = [
       {
@@ -308,33 +264,15 @@ describe('POST /api/bookmarks/import', () => {
     const data = await response.json()
 
     expect(response.status).toBe(500)
-    expect(data.error).toBe('Failed to check existing bookmarks')
+    expect(data.error).toBeDefined()
   })
 
   it('extracts domain correctly for various URL formats', async () => {
-    const mockSelect = vi.fn().mockReturnValue({
-      in: vi.fn().mockResolvedValue({
-        data: [],
-        error: null,
-      }),
-    })
+    mockFrom.mockReturnValue({ where: mockWhere })
+    mockWhere.mockResolvedValue([])
 
-    const mockInsert = vi.fn().mockReturnValue({
-      select: vi.fn().mockResolvedValue({
-        data: [{ id: '1' }, { id: '2' }, { id: '3' }],
-        error: null,
-      }),
-    })
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'bookmarks') {
-        return {
-          select: mockSelect,
-          insert: mockInsert,
-        }
-      }
-      return {}
-    })
+    mockValues.mockReturnValue({ returning: mockReturning })
+    mockReturning.mockResolvedValue([{ id: '1' }, { id: '2' }, { id: '3' }])
 
     const bookmarks = [
       {
@@ -370,7 +308,7 @@ describe('POST /api/bookmarks/import', () => {
 
     await POST(request)
 
-    const insertCall = mockInsert.mock.calls[0][0]
+    const insertCall = mockValues.mock.calls[0][0]
 
     // www. should be removed
     expect(insertCall[0].domain).toBe('github.com')

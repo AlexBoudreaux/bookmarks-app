@@ -1,41 +1,42 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
-// Mock Supabase
-vi.mock('@/lib/supabase', () => {
-  const mockCategories = [
-    { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0 },
-    { id: '2', name: 'Landing Pages', parent_id: '1', usage_count: 50, sort_order: 0 },
-    { id: '3', name: 'Components', parent_id: '1', usage_count: 30, sort_order: 1 },
-    { id: '4', name: 'AI Dev', parent_id: null, usage_count: 80, sort_order: 1 },
-    { id: '5', name: 'Agents', parent_id: '4', usage_count: 40, sort_order: 0 },
-  ]
+const mockCategories = [
+  { id: '1', name: 'UI', parentId: null, usageCount: 100, sortOrder: 0 },
+  { id: '2', name: 'Landing Pages', parentId: '1', usageCount: 50, sortOrder: 0 },
+  { id: '3', name: 'Components', parentId: '1', usageCount: 30, sortOrder: 1 },
+  { id: '4', name: 'AI Dev', parentId: null, usageCount: 80, sortOrder: 1 },
+  { id: '5', name: 'Agents', parentId: '4', usageCount: 40, sortOrder: 0 },
+]
 
-  const mockBookmarkCategories = [
-    { bookmark_id: 'b1', category_id: '2' },
-    { bookmark_id: 'b2', category_id: '2' },
-    { bookmark_id: 'b3', category_id: '5' },
-  ]
+const mockBookmarkCategories = [
+  { bookmarkId: 'b1', categoryId: '2' },
+  { bookmarkId: 'b2', categoryId: '2' },
+  { bookmarkId: 'b3', categoryId: '5' },
+]
 
-  const builder: Record<string, unknown> = {}
-  builder.select = () => builder
-  builder.eq = () => builder
-  builder.is = () => builder
-  builder.order = () => ({ data: mockCategories, error: null })
+let selectCallCount = 0
+const mockFrom = vi.fn()
 
-  return {
-    supabase: {
-      from: (table: string) => {
-        if (table === 'bookmark_categories') {
-          return {
-            select: () => ({ data: mockBookmarkCategories, error: null }),
-          }
-        }
-        return builder
-      },
-    },
-  }
-})
+vi.mock('@/db', () => ({
+  db: {
+    select: vi.fn(() => ({ from: mockFrom })),
+  },
+}))
+
+vi.mock('@/db/schema', () => ({
+  categories: {
+    sortOrder: 'categories.sort_order',
+  },
+  bookmarkCategories: {
+    bookmarkId: 'bookmark_categories.bookmark_id',
+    categoryId: 'bookmark_categories.category_id',
+  },
+}))
+
+vi.mock('drizzle-orm', () => ({
+  asc: vi.fn(),
+}))
 
 // Mock CategoriesContent component
 vi.mock('@/components/categories/categories-content', () => ({
@@ -46,9 +47,31 @@ vi.mock('@/components/categories/categories-content', () => ({
   ),
 }))
 
+// Mock AddCategoryButton component
+vi.mock('@/components/categories/add-category-button', () => ({
+  AddCategoryButton: () => <button>Add Category</button>,
+}))
+
 describe('CategoriesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    selectCallCount = 0
+
+    // The page makes 2 db.select() calls:
+    // 1. categories (with orderBy)
+    // 2. bookmarkCategories (plain select from)
+    mockFrom.mockImplementation(() => {
+      selectCallCount++
+      if (selectCallCount === 1) {
+        // categories query: select().from().orderBy()
+        return {
+          orderBy: vi.fn().mockResolvedValue(mockCategories),
+        }
+      } else {
+        // bookmarkCategories query: select().from()
+        return Promise.resolve(mockBookmarkCategories)
+      }
+    })
   })
 
   it('renders page with header and back link', async () => {

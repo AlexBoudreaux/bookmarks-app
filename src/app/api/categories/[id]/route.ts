@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/db'
+import { categories, bookmarkCategories, type Category } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -15,17 +17,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Category name is required' }, { status: 400 })
     }
 
-    const { data: category, error } = await supabase
-      .from('categories')
-      .update({ name })
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Failed to update category:', error)
-      return NextResponse.json({ error: 'Failed to update category' }, { status: 500 })
-    }
+    const result = await db
+      .update(categories)
+      .set({ name })
+      .where(eq(categories.id, id))
+      .returning() as Category[]
+    const category = result[0]
 
     return NextResponse.json({ category })
   } catch (error) {
@@ -39,35 +36,19 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
     const { id } = await params
 
     // First delete any subcategories
-    const { error: subError } = await supabase
-      .from('categories')
-      .delete()
-      .eq('parent_id', id)
-
-    if (subError) {
-      console.error('Failed to delete subcategories:', subError)
-    }
+    await db
+      .delete(categories)
+      .where(eq(categories.parentId, id))
 
     // Delete bookmark_categories entries for this category
-    const { error: junctionError } = await supabase
-      .from('bookmark_categories')
-      .delete()
-      .eq('category_id', id)
-
-    if (junctionError) {
-      console.error('Failed to delete bookmark_categories:', junctionError)
-    }
+    await db
+      .delete(bookmarkCategories)
+      .where(eq(bookmarkCategories.categoryId, id))
 
     // Delete the category itself
-    const { error } = await supabase
-      .from('categories')
-      .delete()
-      .eq('id', id)
-
-    if (error) {
-      console.error('Failed to delete category:', error)
-      return NextResponse.json({ error: 'Failed to delete category' }, { status: 500 })
-    }
+    await db
+      .delete(categories)
+      .where(eq(categories.id, id))
 
     return NextResponse.json({ success: true })
   } catch (error) {

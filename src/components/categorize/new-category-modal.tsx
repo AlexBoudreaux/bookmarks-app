@@ -11,9 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Database } from '@/types/database'
-
-type Category = Database['public']['Tables']['categories']['Row']
+import type { Category } from '@/db/schema'
 
 interface NewCategoryModalProps {
   isOpen: boolean

@@ -1,25 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock Supabase
-const mockUpdate = vi.fn()
-const mockEq = vi.fn()
+// Track db operations
+const mockSet = vi.fn()
+const mockWhere = vi.fn()
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: () => ({
-      update: mockUpdate,
-    }),
+vi.mock('@/db', () => ({
+  db: {
+    update: vi.fn(() => ({ set: mockSet })),
   },
+}))
+
+vi.mock('@/db/schema', () => ({
+  categories: { id: 'categories.id', sortOrder: 'categories.sort_order' },
+}))
+
+vi.mock('drizzle-orm', () => ({
+  eq: vi.fn(),
 }))
 
 describe('POST /api/categories/reorder', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUpdate.mockReturnValue({ eq: mockEq })
-    mockEq.mockResolvedValue({ error: null })
+    mockSet.mockReturnValue({ where: mockWhere })
+    mockWhere.mockResolvedValue(undefined)
   })
 
-  it('updates sort_order for each category', async () => {
+  it('updates sortOrder for each category', async () => {
     const { POST } = await import('./route')
 
     const request = new Request('http://localhost/api/categories/reorder', {
@@ -34,16 +40,13 @@ describe('POST /api/categories/reorder', () => {
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
 
-    // Verify each category was updated with correct sort_order
-    expect(mockUpdate).toHaveBeenCalledTimes(3)
-    expect(mockUpdate).toHaveBeenNthCalledWith(1, { sort_order: 0 })
-    expect(mockUpdate).toHaveBeenNthCalledWith(2, { sort_order: 1 })
-    expect(mockUpdate).toHaveBeenNthCalledWith(3, { sort_order: 2 })
+    // Verify each category was updated with correct sortOrder
+    expect(mockSet).toHaveBeenCalledTimes(3)
+    expect(mockSet).toHaveBeenNthCalledWith(1, { sortOrder: 0 })
+    expect(mockSet).toHaveBeenNthCalledWith(2, { sortOrder: 1 })
+    expect(mockSet).toHaveBeenNthCalledWith(3, { sortOrder: 2 })
 
-    expect(mockEq).toHaveBeenCalledTimes(3)
-    expect(mockEq).toHaveBeenNthCalledWith(1, 'id', 'cat-1')
-    expect(mockEq).toHaveBeenNthCalledWith(2, 'id', 'cat-2')
-    expect(mockEq).toHaveBeenNthCalledWith(3, 'id', 'cat-3')
+    expect(mockWhere).toHaveBeenCalledTimes(3)
   })
 
   it('returns 400 if categoryIds is not an array', async () => {
@@ -79,9 +82,9 @@ describe('POST /api/categories/reorder', () => {
   })
 
   it('returns 500 if any update fails', async () => {
-    mockEq
-      .mockResolvedValueOnce({ error: null })
-      .mockResolvedValueOnce({ error: { message: 'Database error' } })
+    mockWhere
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('Database error'))
 
     const { POST } = await import('./route')
 
@@ -95,6 +98,6 @@ describe('POST /api/categories/reorder', () => {
     const data = await response.json()
 
     expect(response.status).toBe(500)
-    expect(data.error).toBe('Failed to update category order')
+    expect(data.error).toBe('Failed to reorder categories')
   })
 })

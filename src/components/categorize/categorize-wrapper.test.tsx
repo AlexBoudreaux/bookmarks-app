@@ -52,10 +52,10 @@ vi.mock('./category-picker', () => ({
           onCategoryCreated?.({
             id: 'new-cat-id',
             name: 'New Test Category',
-            parent_id: '1',
-            usage_count: 0,
-            sort_order: 0,
-            created_at: '2024-01-01',
+            parentId: '1',
+            usageCount: 0,
+            sortOrder: 0,
+            createdAt: '2024-01-01',
           })
         }}
       >
@@ -108,10 +108,10 @@ vi.mock('next/link', () => ({
 
 describe('CategorizeWrapper - Position-based Navigation', () => {
   const mockCategories = [
-    { id: '1', name: 'UI', parent_id: null, usage_count: 100, sort_order: 0, created_at: '2024-01-01' },
-    { id: '1a', name: 'Components', parent_id: '1', usage_count: 50, sort_order: 0, created_at: '2024-01-01' },
-    { id: '2', name: 'AI Dev', parent_id: null, usage_count: 90, sort_order: 1, created_at: '2024-01-01' },
-    { id: '2a', name: 'Prompts', parent_id: '2', usage_count: 45, sort_order: 0, created_at: '2024-01-01' },
+    { id: '1', name: 'UI', parentId: null, usageCount: 100, sortOrder: 0, createdAt: '2024-01-01' },
+    { id: '1a', name: 'Components', parentId: '1', usageCount: 50, sortOrder: 0, createdAt: '2024-01-01' },
+    { id: '2', name: 'AI Dev', parentId: null, usageCount: 90, sortOrder: 1, createdAt: '2024-01-01' },
+    { id: '2a', name: 'Prompts', parentId: '2', usageCount: 45, sortOrder: 0, createdAt: '2024-01-01' },
   ]
 
   const mockBookmarks = [
@@ -119,34 +119,34 @@ describe('CategorizeWrapper - Position-based Navigation', () => {
       id: 'b1',
       url: 'https://twitter.com/user/status/123',
       title: 'Tweet 1',
-      is_tweet: true,
-      is_categorized: false,
-      is_keeper: false,
-      is_skipped: false,
+      isTweet: true,
+      isCategorized: false,
+      isKeeper: false,
+      isSkipped: false,
       domain: 'twitter.com',
-      add_date: '2024-01-01'
+      addDate: '2024-01-01'
     },
     {
       id: 'b2',
       url: 'https://github.com/example/repo',
       title: 'GitHub Repo',
-      is_tweet: false,
-      is_categorized: false,
-      is_keeper: false,
-      is_skipped: false,
+      isTweet: false,
+      isCategorized: false,
+      isKeeper: false,
+      isSkipped: false,
       domain: 'github.com',
-      add_date: '2024-01-02'
+      addDate: '2024-01-02'
     },
     {
       id: 'b3',
       url: 'https://twitter.com/other/status/456',
       title: 'Tweet 2',
-      is_tweet: true,
-      is_categorized: false,
-      is_keeper: false,
-      is_skipped: false,
+      isTweet: true,
+      isCategorized: false,
+      isKeeper: false,
+      isSkipped: false,
       domain: 'twitter.com',
-      add_date: '2024-01-03'
+      addDate: '2024-01-03'
     },
   ]
 
