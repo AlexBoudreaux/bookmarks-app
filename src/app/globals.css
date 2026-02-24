@@ -143,6 +143,16 @@
   }
 }
 
+/* Masonry grid item fade-in */
+@keyframes masonry-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.masonry-item {
+  animation: masonry-fade-in 0.3s ease-out both;
+}
+
 .tweet-card-embed {
   /* Let tweets size naturally */
   & > div {

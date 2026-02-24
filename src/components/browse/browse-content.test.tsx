@@ -119,12 +119,12 @@ describe('BrowseContent', () => {
   })
 
   it('has responsive masonry layout', () => {
-    const { container } = render(<BrowseContent categories={mockCategories} bookmarks={mockBookmarks} bookmarkCategories={mockBookmarkCategories} />)
+    render(<BrowseContent categories={mockCategories} bookmarks={mockBookmarks} bookmarkCategories={mockBookmarkCategories} />)
 
-    const grid = container.querySelector('[data-testid="bookmark-grid"]')
+    const grid = screen.getByTestId('bookmark-grid')
     expect(grid).toBeInTheDocument()
-    // Should have responsive columns for masonry layout
-    expect(grid?.className).toMatch(/columns/)
+    // Should use flex-based masonry layout
+    expect(grid.style.display).toBe('flex')
   })
 
   // BRW-002: Category tree sidebar tests
@@ -246,8 +246,8 @@ describe('BrowseContent', () => {
     })
 
     it('shows loading spinner when there are more bookmarks', () => {
-      // Create 30 bookmarks (more than ITEMS_PER_PAGE of 24)
-      const manyBookmarks = Array.from({ length: 30 }, (_, i) => ({
+      // Create 60 bookmarks (more than ITEMS_PER_PAGE of 48)
+      const manyBookmarks = Array.from({ length: 60 }, (_, i) => ({
         id: `bm-${i}`,
         url: `https://example.com/${i}`,
         title: `Bookmark ${i}`,
@@ -273,7 +273,7 @@ describe('BrowseContent', () => {
     })
 
     it('initially shows paginated bookmarks', () => {
-      const manyBookmarks = Array.from({ length: 30 }, (_, i) => ({
+      const manyBookmarks = Array.from({ length: 60 }, (_, i) => ({
         id: `bm-${i}`,
         url: `https://example.com/${i}`,
         title: `Bookmark ${i}`,
@@ -289,13 +289,13 @@ describe('BrowseContent', () => {
 
       const grid = screen.getByTestId('bookmark-grid')
 
-      // Initially should show 24 bookmarks (ITEMS_PER_PAGE)
-      expect(within(grid).getAllByRole('article')).toHaveLength(24)
+      // Initially should show 48 bookmarks (ITEMS_PER_PAGE)
+      expect(within(grid).getAllByRole('article')).toHaveLength(48)
     })
 
     it('resets pagination when category filter changes', async () => {
       const user = userEvent.setup()
-      const manyBookmarks = Array.from({ length: 30 }, (_, i) => ({
+      const manyBookmarks = Array.from({ length: 60 }, (_, i) => ({
         id: `bm-${i}`,
         url: `https://example.com/${i}`,
         title: `Bookmark ${i}`,
@@ -322,15 +322,15 @@ describe('BrowseContent', () => {
       )
 
       const grid = screen.getByTestId('bookmark-grid')
-      expect(within(grid).getAllByRole('article')).toHaveLength(24)
+      expect(within(grid).getAllByRole('article')).toHaveLength(48)
 
       // Click a category to filter
       const uiButton = screen.getByText('UI').closest('button')
       await user.click(uiButton!)
 
-      // Should reset to initial 24 (or all 30 if fewer than 24 in category)
-      // Since all 30 are in UI category, should show 24 again
-      expect(within(grid).getAllByRole('article')).toHaveLength(24)
+      // Should reset to initial 48 (or all 60 if fewer than 48 in category)
+      // Since all 60 are in UI category, should show 48 again
+      expect(within(grid).getAllByRole('article')).toHaveLength(48)
     })
   })
 

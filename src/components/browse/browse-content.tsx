@@ -1,15 +1,16 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef, startTransition } from 'react'
 import { Search, ChevronRight, ChevronDown, PanelLeftClose, PanelLeft, Bookmark, Filter, Loader2, X, ChevronUp, StickyNote, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TweetCard } from './tweet-card'
 import { BrowseLinkCard } from './browse-link-card'
+import { MasonryGrid } from './masonry-grid'
 import { useDebounce } from '@/hooks/use-debounce'
 
-const ITEMS_PER_PAGE = 24
+const ITEMS_PER_PAGE = 48
 const SEARCH_DEBOUNCE_MS = 300
-const LOAD_MORE_THRESHOLD = 200 // pixels from bottom to trigger load
+const LOAD_MORE_THRESHOLD = 1000 // pixels from bottom to trigger load
 
 type SortOption = 'newest' | 'oldest' | 'recently_viewed'
 type TypeFilter = 'all' | 'tweet' | 'non-tweet'
@@ -256,9 +257,8 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
 
   const hasMore = displayCount < filteredBookmarks.length
 
-  const loadMore = () => {
-    setDisplayCount(prev => prev + ITEMS_PER_PAGE)
-  }
+  // Derive a reset key from all active filters so masonry clears on filter changes
+  const filterResetKey = `${selectedCategoryId}-${typeFilter}-${Array.from(selectedDomains).sort().join(',')}-${hasNotesFilter}-${sortOption}-${debouncedSearchQuery}`
 
   // Reset pagination when filter changes
   const handleCategoryClickWithReset = (categoryId: string | null) => {
@@ -276,7 +276,9 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore) {
-          setDisplayCount(prev => prev + ITEMS_PER_PAGE)
+          startTransition(() => {
+            setDisplayCount(prev => prev + ITEMS_PER_PAGE)
+          })
         }
       },
       { threshold: 0, rootMargin: `${LOAD_MORE_THRESHOLD}px` }
@@ -730,20 +732,17 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
               </p>
             </div>
           ) : (
-            <div
-              data-testid="bookmark-grid"
-              className="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-4"
-            >
-              {displayedBookmarks.map(bookmark => (
+            <MasonryGrid
+              items={displayedBookmarks}
+              getKey={(b) => b.id}
+              resetKey={filterResetKey}
+              renderItem={(bookmark) =>
                 bookmark.isTweet ? (
-                  <article key={bookmark.id} className="break-inside-avoid mb-4">
+                  <article>
                     <TweetCard url={bookmark.url} title={bookmark.title} />
                   </article>
                 ) : (
-                  <article
-                    key={bookmark.id}
-                    className="break-inside-avoid mb-4 group relative rounded-lg border border-zinc-800/50 bg-zinc-900/30 hover:bg-zinc-800/30 hover:border-zinc-700/50 transition-all overflow-hidden"
-                  >
+                  <article className="group relative rounded-lg border border-zinc-800/50 bg-zinc-900/30 hover:bg-zinc-800/30 hover:border-zinc-700/50 transition-all overflow-hidden">
                     <BrowseLinkCard
                       url={bookmark.url}
                       title={bookmark.title}
@@ -753,8 +752,8 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
                     />
                   </article>
                 )
-              ))}
-            </div>
+              }
+            />
           )}
 
           {/* Infinite scroll sentinel */}
