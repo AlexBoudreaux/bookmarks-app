@@ -736,6 +736,11 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
               items={displayedBookmarks}
               getKey={(b) => b.id}
               resetKey={filterResetKey}
+              footer={hasMore ? (
+                <div ref={loadMoreRef} className="flex justify-center py-8">
+                  <Loader2 className="w-5 h-5 text-zinc-500 animate-spin" />
+                </div>
+              ) : undefined}
               renderItem={(bookmark) =>
                 bookmark.isTweet ? (
                   <article>
@@ -754,16 +759,6 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
                 )
               }
             />
-          )}
-
-          {/* Infinite scroll sentinel */}
-          {hasMore && (
-            <div
-              ref={loadMoreRef}
-              className="flex justify-center py-8"
-            >
-              <Loader2 className="w-5 h-5 text-zinc-500 animate-spin" />
-            </div>
           )}
         </div>
       </div>

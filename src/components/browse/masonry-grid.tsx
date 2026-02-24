@@ -11,6 +11,7 @@ interface MasonryGridProps<T> {
   gap?: number
   resetKey?: string | number
   className?: string
+  footer?: ReactNode
 }
 
 export function MasonryGrid<T>({
@@ -21,6 +22,7 @@ export function MasonryGrid<T>({
   gap = 16,
   resetKey,
   className,
+  footer,
 }: MasonryGridProps<T>) {
   const isMd = useMediaQuery('(min-width: 768px)')
   const isLg = useMediaQuery('(min-width: 1024px)')
@@ -81,6 +83,18 @@ export function MasonryGrid<T>({
     return cols
   }, [items, columnCount])
 
+  // Find shortest column by item count so we can place the footer there.
+  // This ensures the load-more sentinel triggers before blank space appears.
+  const shortestColIndex = useMemo(() => {
+    let shortest = 0
+    for (let i = 1; i < columns.length; i++) {
+      if (columns[i].length < columns[shortest].length) {
+        shortest = i
+      }
+    }
+    return shortest
+  }, [columns])
+
   return (
     <div
       data-testid="bookmark-grid"
@@ -97,6 +111,7 @@ export function MasonryGrid<T>({
               {renderItem(item)}
             </div>
           ))}
+          {colIndex === shortestColIndex && footer}
         </div>
       ))}
     </div>
