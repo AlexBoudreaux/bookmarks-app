@@ -35,6 +35,7 @@ export function CategoryPicker({
   const [selectedMainIndex, setSelectedMainIndex] = useState<number | null>(null)
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null)
   const [subcategoryPage, setSubcategoryPage] = useState(0)
+  const [mainCategoryPage, setMainCategoryPage] = useState(0)
 
   // Use controlled pairs if provided, otherwise manage internally
   const [internalPairs, setInternalPairs] = useState<CategoryPair[]>([])
@@ -67,11 +68,13 @@ export function CategoryPicker({
     }
   }
 
-  // Get main categories (no parent)
-  const mainCategories = categories
+  // Get main categories (no parent) with pagination
+  const allMainCategories = categories
     .filter(c => c.parentId === null)
     .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
-    .slice(0, 10)
+  const totalMainPages = Math.ceil(allMainCategories.length / 10)
+  const hasMultipleMainPages = totalMainPages > 1
+  const mainCategories = allMainCategories.slice(mainCategoryPage * 10, (mainCategoryPage + 1) * 10)
 
   // Get all subcategories of selected main category (for pagination)
   const allSubcategories = selectedMain
@@ -124,8 +127,16 @@ export function CategoryPicker({
   // Go back from subcategory to main category selection
   const handleGoBackToMain = () => {
     setSelectedMain(null)
+    setMainCategoryPage(0)
     setState(selectedPairs.length > 0 ? 'ready' : 'main')
     setHighlightedIndex(null)
+  }
+
+  // Handle pagination for main categories
+  const handleNextMainPage = () => {
+    if (hasMultipleMainPages) {
+      setMainCategoryPage((prev) => (prev + 1) % totalMainPages)
+    }
   }
 
   // Handle pagination for subcategories
@@ -163,6 +174,13 @@ export function CategoryPicker({
       if (e.key === '-' && (state === 'main' || state === 'subcategory')) {
         e.preventDefault()
         handleNewCategory()
+        return
+      }
+
+      // Handle = key for main category pagination
+      if (e.key === '=' && (state === 'main' || state === 'ready') && hasMultipleMainPages) {
+        e.preventDefault()
+        handleNextMainPage()
         return
       }
 
@@ -206,7 +224,7 @@ export function CategoryPicker({
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [state, mainCategories, subcategories, selectedMain, selectedPairs, hasMultiplePages, totalSubcategoryPages])
+  }, [state, mainCategories, subcategories, selectedMain, selectedPairs, hasMultiplePages, totalSubcategoryPages, hasMultipleMainPages, totalMainPages])
 
   const shakeClass = isShaking ? 'animate-shake' : ''
 
@@ -308,6 +326,24 @@ export function CategoryPicker({
               <span className="text-sm text-zinc-500">New...</span>
             </div>
           </button>
+
+          {/* More button for pagination - only show when there are multiple pages */}
+          {hasMultipleMainPages && (
+            <button
+              onClick={handleNextMainPage}
+              className="relative w-full h-12 bg-zinc-800/30 hover:bg-zinc-800/50 border border-zinc-700/50 hover:border-emerald-500/50 rounded-lg px-3 transition-all duration-200"
+              aria-label={`More categories - Press =`}
+            >
+              <div className="flex items-center gap-2.5 h-full">
+                <span className="shrink-0 text-sm font-mono text-zinc-500 bg-zinc-800/50 border border-zinc-700/50 w-6 h-6 flex items-center justify-center rounded">
+                  =
+                </span>
+                <span className="text-sm text-zinc-500">
+                  More ({mainCategoryPage + 1}/{totalMainPages})
+                </span>
+              </div>
+            </button>
+          )}
         </div>
       )}
 

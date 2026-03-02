@@ -22,7 +22,7 @@ describe('CategoryPicker', () => {
     { id: '11', name: 'Misc', parentId: null, usageCount: 5, sortOrder: 10, createdAt: '2024-01-01' },
   ]
 
-  it('renders top 10 categories sorted by usageCount', () => {
+  it('renders top 10 categories sorted by usageCount on first page', () => {
     render(<CategoryPicker categories={mockCategories} onSelect={vi.fn()} />)
 
     // Should show first 10 categories
@@ -30,7 +30,7 @@ describe('CategoryPicker', () => {
     expect(screen.getByText('AI Dev')).toBeInTheDocument()
     expect(screen.getByText('Personal')).toBeInTheDocument()
 
-    // 11th category should not be shown in keyboard shortcuts
+    // 11th category should not be visible on page 1 (accessible via pagination)
     expect(screen.queryByText('Misc')).not.toBeInTheDocument()
   })
 
@@ -386,6 +386,115 @@ describe('CategoryPicker', () => {
       expect(mockFetch).toHaveBeenCalledWith('/api/categories', expect.objectContaining({
         body: JSON.stringify({ name: 'New Subcat', parent_id: '1' }),
       }))
+    })
+  })
+
+  describe('Main category pagination', () => {
+    // 13 main categories to test pagination (page 1: 10, page 2: 3)
+    const mockManyMainCategories = Array.from({ length: 13 }, (_, i) => ({
+      id: `main-${i + 1}`,
+      name: `Main ${i + 1}`,
+      parentId: null,
+      usageCount: 130 - i * 10,
+      sortOrder: i,
+      createdAt: '2024-01-01',
+    }))
+
+    it('shows More button when more than 10 main categories exist', () => {
+      render(<CategoryPicker categories={mockManyMainCategories} onSelect={vi.fn()} />)
+
+      expect(screen.getByRole('button', { name: /More categories.*Press =/ })).toBeInTheDocument()
+    })
+
+    it('does not show More button when 10 or fewer main categories exist', () => {
+      const tenCategories = mockManyMainCategories.slice(0, 10)
+      render(<CategoryPicker categories={tenCategories} onSelect={vi.fn()} />)
+
+      expect(screen.queryByRole('button', { name: /More categories.*Press =/ })).not.toBeInTheDocument()
+    })
+
+    it('shows page 2 main categories when = key is pressed', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockManyMainCategories} onSelect={vi.fn()} />)
+
+      // Page 1 should show Main 1-10
+      expect(screen.getByText('Main 1')).toBeInTheDocument()
+      expect(screen.getByText('Main 10')).toBeInTheDocument()
+      expect(screen.queryByText('Main 11')).not.toBeInTheDocument()
+
+      // Press = to go to page 2
+      await user.keyboard('=')
+
+      // Page 2 should show Main 11-13
+      await waitFor(() => {
+        expect(screen.getByText('Main 11')).toBeInTheDocument()
+      })
+      expect(screen.getByText('Main 13')).toBeInTheDocument()
+      expect(screen.queryByText('Main 1')).not.toBeInTheDocument()
+    })
+
+    it('cycles back to page 1 when pressing = on last page', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockManyMainCategories} onSelect={vi.fn()} />)
+
+      // Go to page 2
+      await user.keyboard('=')
+      await waitFor(() => {
+        expect(screen.getByText('Main 11')).toBeInTheDocument()
+      })
+
+      // Press = again to cycle back to page 1
+      await user.keyboard('=')
+      await waitFor(() => {
+        expect(screen.getByText('Main 1')).toBeInTheDocument()
+      })
+      expect(screen.queryByText('Main 11')).not.toBeInTheDocument()
+    })
+
+    it('allows selecting category from page 2 with keyboard shortcut', async () => {
+      const user = userEvent.setup()
+      const onSelect = vi.fn()
+      render(<CategoryPicker categories={mockManyMainCategories} onSelect={onSelect} />)
+
+      // Go to page 2
+      await user.keyboard('=')
+      await waitFor(() => {
+        expect(screen.getByText('Main 11')).toBeInTheDocument()
+      })
+
+      // Press 1 to select Main 11 (first on page 2)
+      await user.keyboard('1')
+
+      expect(onSelect).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Main 11' })
+      )
+    })
+
+    it('shows page indicator in More button', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockManyMainCategories} onSelect={vi.fn()} />)
+
+      // Page 1 indicator
+      expect(screen.getByText(/More \(1\/2\)/)).toBeInTheDocument()
+
+      // Go to page 2
+      await user.keyboard('=')
+      await waitFor(() => {
+        expect(screen.getByText(/More \(2\/2\)/)).toBeInTheDocument()
+      })
+    })
+
+    it('clicking More button goes to next page', async () => {
+      const user = userEvent.setup()
+      render(<CategoryPicker categories={mockManyMainCategories} onSelect={vi.fn()} />)
+
+      const moreButton = screen.getByRole('button', { name: /More categories.*Press =/ })
+      await user.click(moreButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('Main 11')).toBeInTheDocument()
+      })
+      expect(screen.queryByText('Main 1')).not.toBeInTheDocument()
     })
   })
 
