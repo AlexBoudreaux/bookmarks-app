@@ -322,6 +322,129 @@ const handler = createMcpHandler(
         }
       }
     )
+
+    server.tool(
+      'get_bookmarks_by_category',
+      'Get all bookmarks in a specific category or subcategory. If you pass a main category ID, it includes all bookmarks in any of its subcategories too. Returns rich data with content, media info, and all category assignments. Use list_categories first to get valid category IDs.',
+      {
+        categoryId: z.string().uuid().describe('Category ID (main or subcategory)'),
+        isTweet: z.boolean().optional().describe('Filter to tweets only (true) or non-tweets only (false)'),
+        limit: z.number().int().min(1).max(100).default(50).describe('Max results (default 50, max 100)'),
+        offset: z.number().int().min(0).default(0).describe('Offset for pagination'),
+      },
+      async ({ categoryId, isTweet, limit, offset }) => {
+        const categoryAndChildren = await db
+          .select({ id: categories.id })
+          .from(categories)
+          .where(sql`${categories.id} = ${categoryId} OR ${categories.parentId} = ${categoryId}`)
+
+        const catIds = categoryAndChildren.map(c => c.id)
+
+        if (catIds.length === 0) {
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Category not found' }) }],
+          }
+        }
+
+        const junctionRecords = await db
+          .select({ bookmarkId: bookmarkCategories.bookmarkId })
+          .from(bookmarkCategories)
+          .where(inArray(bookmarkCategories.categoryId, catIds))
+
+        const bookmarkIdsInCat = [...new Set(junctionRecords.map(r => r.bookmarkId))]
+
+        if (bookmarkIdsInCat.length === 0) {
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({ bookmarks: [], total: 0, limit, offset }, null, 2) }],
+          }
+        }
+
+        const conditions = [
+          inArray(bookmarks.id, bookmarkIdsInCat),
+          eq(bookmarks.isKeeper, false),
+          eq(bookmarks.isSkipped, false),
+        ]
+
+        if (isTweet !== undefined) {
+          conditions.push(eq(bookmarks.isTweet, isTweet))
+        }
+
+        const [{ count: totalCount }] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(bookmarks)
+          .where(and(...conditions))
+
+        const results = await db
+          .select()
+          .from(bookmarks)
+          .where(and(...conditions))
+          .orderBy(desc(bookmarks.addDate))
+          .limit(limit)
+          .offset(offset)
+
+        const resultIds = results.map(b => b.id)
+        let catMap: Record<string, Array<{ main: string; sub: string | null }>> = {}
+
+        if (resultIds.length > 0) {
+          const allJunctions = await db
+            .select({
+              bookmarkId: bookmarkCategories.bookmarkId,
+              categoryId: bookmarkCategories.categoryId,
+            })
+            .from(bookmarkCategories)
+            .where(inArray(bookmarkCategories.bookmarkId, resultIds))
+
+          const allCatIds = [...new Set(allJunctions.map(j => j.categoryId))]
+          const cats = allCatIds.length > 0
+            ? await db.select().from(categories).where(inArray(categories.id, allCatIds))
+            : []
+          const catById = Object.fromEntries(cats.map(c => [c.id, c]))
+
+          for (const j of allJunctions) {
+            const cat = catById[j.categoryId]
+            if (!cat) continue
+            if (!catMap[j.bookmarkId]) catMap[j.bookmarkId] = []
+
+            if (cat.parentId) {
+              const parent = catById[cat.parentId]
+              catMap[j.bookmarkId].push({ main: parent?.name || 'Unknown', sub: cat.name })
+            } else {
+              const hasSub = catMap[j.bookmarkId].some(c => c.main === cat.name)
+              if (!hasSub) {
+                catMap[j.bookmarkId].push({ main: cat.name, sub: null })
+              }
+            }
+          }
+        }
+
+        const urlRegex = /https?:\/\/[^\s)>\]]+/g
+        const enrichedBookmarks = results.map(b => ({
+          id: b.id,
+          url: b.url,
+          title: b.title,
+          content: b.content,
+          isTweet: b.isTweet,
+          hasMedia: b.hasMedia,
+          domain: b.domain,
+          notes: b.notes,
+          addDate: b.addDate,
+          categories: catMap[b.id] || [],
+          urlsInContent: (b.content?.match(urlRegex) || []).filter(u => !u.includes('t.co/')),
+        }))
+
+        return {
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify({
+              bookmarks: enrichedBookmarks,
+              total: Number(totalCount),
+              limit,
+              offset,
+            }, null, 2),
+          }],
+        }
+      }
+    )
   },
   {},
   {
