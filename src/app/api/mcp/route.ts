@@ -10,7 +10,7 @@ const handler = createMcpHandler(
   async (server) => {
     server.tool(
       'list_categories',
-      'List all bookmark categories as a tree (main categories with their subcategories). Returns category names, IDs, and usage counts. Use this first to understand what categories exist before searching.',
+      'List all bookmark categories as a tree (main categories with their subcategories). Returns category names, IDs, and actual bookmark counts. Use this first to understand what categories exist before searching.',
       {},
       async () => {
         const allCategories = await db
@@ -18,19 +18,36 @@ const handler = createMcpHandler(
           .from(categories)
           .orderBy(desc(categories.usageCount))
 
+        // Count actual non-skipped bookmarks per category from junction table
+        const counts = await db
+          .select({
+            categoryId: bookmarkCategories.categoryId,
+            count: sql<number>`count(*)`,
+          })
+          .from(bookmarkCategories)
+          .innerJoin(bookmarks, eq(bookmarkCategories.bookmarkId, bookmarks.id))
+          .where(and(eq(bookmarks.isSkipped, false), eq(bookmarks.isKeeper, false)))
+          .groupBy(bookmarkCategories.categoryId)
+
+        const countMap = Object.fromEntries(counts.map(c => [c.categoryId, Number(c.count)]))
+
         const mainCategories = allCategories.filter(c => !c.parentId)
-        const tree = mainCategories.map(main => ({
-          id: main.id,
-          name: main.name,
-          usageCount: main.usageCount,
-          subcategories: allCategories
+        const tree = mainCategories.map(main => {
+          const subs = allCategories
             .filter(sub => sub.parentId === main.id)
             .map(sub => ({
               id: sub.id,
               name: sub.name,
-              usageCount: sub.usageCount,
-            })),
-        }))
+              bookmarkCount: countMap[sub.id] || 0,
+            }))
+
+          return {
+            id: main.id,
+            name: main.name,
+            bookmarkCount: subs.reduce((sum, s) => sum + s.bookmarkCount, 0),
+            subcategories: subs,
+          }
+        })
 
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(tree, null, 2) }],

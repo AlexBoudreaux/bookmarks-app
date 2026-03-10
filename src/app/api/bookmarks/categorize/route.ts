@@ -21,7 +21,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 1. Delete existing bookmark_categories for this bookmark (idempotent for re-categorization)
+    // 1. Get existing categories for this bookmark (for decrementing usage counts)
+    const existingJunctions = await db
+      .select({ categoryId: bookmarkCategories.categoryId })
+      .from(bookmarkCategories)
+      .where(eq(bookmarkCategories.bookmarkId, bookmarkId))
+
+    const oldCategoryIds = existingJunctions.map(j => j.categoryId)
+
+    // 2. Delete existing bookmark_categories for this bookmark (idempotent for re-categorization)
     await db
       .delete(bookmarkCategories)
       .where(eq(bookmarkCategories.bookmarkId, bookmarkId))
@@ -41,15 +49,21 @@ export async function POST(request: NextRequest) {
       .set({ isCategorized: true, isSkipped: false })
       .where(eq(bookmarks.id, bookmarkId))
 
-    // 4. Increment usage_count on selected categories
+    // 4. Update usage_count: decrement old categories, increment new ones
     try {
+      if (oldCategoryIds.length > 0) {
+        await db
+          .update(categories)
+          .set({ usageCount: sql`GREATEST(COALESCE(${categories.usageCount}, 0) - 1, 0)` })
+          .where(inArray(categories.id, oldCategoryIds))
+      }
       await db
         .update(categories)
         .set({ usageCount: sql`COALESCE(${categories.usageCount}, 0) + 1` })
         .where(inArray(categories.id, uniqueCategoryIds))
     } catch (rpcError) {
       // Log but don't fail the request since categorization was successful
-      console.error('Failed to increment usage counts:', rpcError)
+      console.error('Failed to update usage counts:', rpcError)
     }
 
     return NextResponse.json({ success: true })

@@ -5,9 +5,11 @@ const mockDeleteWhere = vi.fn()
 const mockInsertValues = vi.fn()
 const mockUpdateSet = vi.fn()
 const mockUpdateSetWhere = vi.fn()
+const mockSelectWhere = vi.fn()
 
 vi.mock('@/db', () => ({
   db: {
+    select: vi.fn(() => ({ from: vi.fn(() => ({ where: mockSelectWhere })) })),
     delete: vi.fn(() => ({ where: mockDeleteWhere })),
     insert: vi.fn(() => ({ values: mockInsertValues })),
     update: vi.fn(() => ({ set: mockUpdateSet })),
@@ -30,6 +32,7 @@ describe('POST /api/bookmarks/categorize', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // Default success path
+    mockSelectWhere.mockResolvedValue([])
     mockDeleteWhere.mockResolvedValue(undefined)
     mockInsertValues.mockResolvedValue(undefined)
     mockUpdateSet.mockReturnValue({ where: mockUpdateSetWhere })
@@ -119,8 +122,31 @@ describe('POST /api/bookmarks/categorize', () => {
 
     await POST(request as any)
 
-    // db.update should be called for both bookmarks and categories
+    // db.update called for: bookmarks set + categories increment (no decrement since no old categories)
     expect(db.update).toHaveBeenCalledTimes(2)
+  })
+
+  it('decrements old category counts when recategorizing', async () => {
+    // Simulate existing categories on this bookmark
+    mockSelectWhere.mockResolvedValueOnce([
+      { categoryId: 'old-cat-1' },
+      { categoryId: 'old-cat-2' },
+    ])
+
+    const { db } = await import('@/db')
+    const { POST } = await import('./route')
+    const request = new Request('http://localhost/api/bookmarks/categorize', {
+      method: 'POST',
+      body: JSON.stringify({
+        bookmarkId: 'bookmark-1',
+        categoryIds: ['new-cat-1'],
+      }),
+    })
+
+    await POST(request as any)
+
+    // db.update called for: decrement old + bookmarks set + increment new = 3
+    expect(db.update).toHaveBeenCalledTimes(3)
   })
 
   it('returns 500 if delete throws', async () => {
