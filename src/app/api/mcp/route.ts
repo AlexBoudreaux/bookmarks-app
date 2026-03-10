@@ -4,6 +4,7 @@ import { db } from '@/db'
 import { bookmarks, categories, bookmarkCategories } from '@/db/schema'
 import { eq, and, desc, inArray, sql } from 'drizzle-orm'
 import { buildTsQuery } from '@/lib/search-bookmarks'
+import { attachCategories, enrichBookmarks, extractUrls } from '@/lib/mcp-queries'
 
 const handler = createMcpHandler(
   async (server) => {
@@ -123,7 +124,6 @@ const handler = createMcpHandler(
           conditions.push(eq(bookmarks.domain, domain))
         }
 
-        let bookmarkIdsInCategory: string[] | null = null
         if (categoryId) {
           const categoryAndChildren = await db
             .select({ id: categories.id })
@@ -137,7 +137,7 @@ const handler = createMcpHandler(
             .from(bookmarkCategories)
             .where(inArray(bookmarkCategories.categoryId, catIds))
 
-          bookmarkIdsInCategory = [...new Set(junctionRecords.map(r => r.bookmarkId))]
+          const bookmarkIdsInCategory = [...new Set(junctionRecords.map(r => r.bookmarkId))]
 
           if (bookmarkIdsInCategory.length === 0) {
             return {
@@ -161,86 +161,14 @@ const handler = createMcpHandler(
           .limit(limit)
           .offset(offset)
 
-        // Fetch categories for these bookmarks in one query
-        const resultIds = results.map(b => b.id)
-        let categoryMap: Record<string, Array<{ main: string; sub: string | null; mainId: string; subId: string | null }>> = {}
-
-        if (resultIds.length > 0) {
-          const junctions = await db
-            .select({
-              bookmarkId: bookmarkCategories.bookmarkId,
-              categoryId: bookmarkCategories.categoryId,
-            })
-            .from(bookmarkCategories)
-            .where(inArray(bookmarkCategories.bookmarkId, resultIds))
-
-          const allCatIds = [...new Set(junctions.map(j => j.categoryId))]
-
-          if (allCatIds.length > 0) {
-            const cats = await db
-              .select()
-              .from(categories)
-              .where(inArray(categories.id, allCatIds))
-
-            const catById = Object.fromEntries(cats.map(c => [c.id, c]))
-
-            for (const j of junctions) {
-              const cat = catById[j.categoryId]
-              if (!cat) continue
-
-              if (!categoryMap[j.bookmarkId]) categoryMap[j.bookmarkId] = []
-
-              if (cat.parentId) {
-                const parent = catById[cat.parentId]
-                categoryMap[j.bookmarkId].push({
-                  main: parent?.name || 'Unknown',
-                  mainId: cat.parentId,
-                  sub: cat.name,
-                  subId: cat.id,
-                })
-              } else {
-                const alreadyHasSub = categoryMap[j.bookmarkId].some(
-                  c => c.mainId === cat.id
-                )
-                if (!alreadyHasSub) {
-                  categoryMap[j.bookmarkId].push({
-                    main: cat.name,
-                    mainId: cat.id,
-                    sub: null,
-                    subId: null,
-                  })
-                }
-              }
-            }
-          }
-        }
-
-        const urlRegex = /https?:\/\/[^\s)>\]]+/g
-
-        const enrichedBookmarks = results.map(b => {
-          const contentUrls = b.content?.match(urlRegex) || []
-          const meaningfulUrls = contentUrls.filter(u => !u.includes('t.co/'))
-
-          return {
-            id: b.id,
-            url: b.url,
-            title: b.title,
-            content: b.content,
-            isTweet: b.isTweet,
-            hasMedia: b.hasMedia,
-            domain: b.domain,
-            notes: b.notes,
-            addDate: b.addDate,
-            categories: categoryMap[b.id] || [],
-            urlsInContent: meaningfulUrls,
-          }
-        })
+        const categoryMap = await attachCategories(results.map(b => b.id))
+        const enriched = enrichBookmarks(results, categoryMap)
 
         return {
           content: [{
             type: 'text' as const,
             text: JSON.stringify({
-              bookmarks: enrichedBookmarks,
+              bookmarks: enriched,
               total: Number(totalCount),
               limit,
               offset,
@@ -269,38 +197,7 @@ const handler = createMcpHandler(
           }
         }
 
-        const junctions = await db
-          .select({ categoryId: bookmarkCategories.categoryId })
-          .from(bookmarkCategories)
-          .where(eq(bookmarkCategories.bookmarkId, id))
-
-        const catIds = junctions.map(j => j.categoryId)
-        let bookmarkCategs: Array<{ main: string; sub: string | null }> = []
-
-        if (catIds.length > 0) {
-          const cats = await db
-            .select()
-            .from(categories)
-            .where(inArray(categories.id, catIds))
-
-          const catById = Object.fromEntries(cats.map(c => [c.id, c]))
-
-          for (const cat of cats) {
-            if (cat.parentId) {
-              const parent = catById[cat.parentId]
-              bookmarkCategs.push({ main: parent?.name || 'Unknown', sub: cat.name })
-            } else {
-              const hasSub = bookmarkCategs.some(c => c.main === cat.name)
-              if (!hasSub) {
-                bookmarkCategs.push({ main: cat.name, sub: null })
-              }
-            }
-          }
-        }
-
-        const urlRegex = /https?:\/\/[^\s)>\]]+/g
-        const contentUrls = bookmark.content?.match(urlRegex) || []
-        const meaningfulUrls = contentUrls.filter(u => !u.includes('t.co/'))
+        const categoryMap = await attachCategories([id])
 
         const result = {
           id: bookmark.id,
@@ -313,8 +210,8 @@ const handler = createMcpHandler(
           notes: bookmark.notes,
           ogImage: bookmark.ogImage,
           addDate: bookmark.addDate,
-          categories: bookmarkCategs,
-          urlsInContent: meaningfulUrls,
+          categories: categoryMap[id] || [],
+          urlsInContent: extractUrls(bookmark.content),
         }
 
         return {
@@ -382,61 +279,14 @@ const handler = createMcpHandler(
           .limit(limit)
           .offset(offset)
 
-        const resultIds = results.map(b => b.id)
-        let catMap: Record<string, Array<{ main: string; sub: string | null }>> = {}
-
-        if (resultIds.length > 0) {
-          const allJunctions = await db
-            .select({
-              bookmarkId: bookmarkCategories.bookmarkId,
-              categoryId: bookmarkCategories.categoryId,
-            })
-            .from(bookmarkCategories)
-            .where(inArray(bookmarkCategories.bookmarkId, resultIds))
-
-          const allCatIds = [...new Set(allJunctions.map(j => j.categoryId))]
-          const cats = allCatIds.length > 0
-            ? await db.select().from(categories).where(inArray(categories.id, allCatIds))
-            : []
-          const catById = Object.fromEntries(cats.map(c => [c.id, c]))
-
-          for (const j of allJunctions) {
-            const cat = catById[j.categoryId]
-            if (!cat) continue
-            if (!catMap[j.bookmarkId]) catMap[j.bookmarkId] = []
-
-            if (cat.parentId) {
-              const parent = catById[cat.parentId]
-              catMap[j.bookmarkId].push({ main: parent?.name || 'Unknown', sub: cat.name })
-            } else {
-              const hasSub = catMap[j.bookmarkId].some(c => c.main === cat.name)
-              if (!hasSub) {
-                catMap[j.bookmarkId].push({ main: cat.name, sub: null })
-              }
-            }
-          }
-        }
-
-        const urlRegex = /https?:\/\/[^\s)>\]]+/g
-        const enrichedBookmarks = results.map(b => ({
-          id: b.id,
-          url: b.url,
-          title: b.title,
-          content: b.content,
-          isTweet: b.isTweet,
-          hasMedia: b.hasMedia,
-          domain: b.domain,
-          notes: b.notes,
-          addDate: b.addDate,
-          categories: catMap[b.id] || [],
-          urlsInContent: (b.content?.match(urlRegex) || []).filter(u => !u.includes('t.co/')),
-        }))
+        const categoryMap = await attachCategories(results.map(b => b.id))
+        const enriched = enrichBookmarks(results, categoryMap)
 
         return {
           content: [{
             type: 'text' as const,
             text: JSON.stringify({
-              bookmarks: enrichedBookmarks,
+              bookmarks: enriched,
               total: Number(totalCount),
               limit,
               offset,
