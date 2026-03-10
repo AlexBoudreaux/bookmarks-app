@@ -249,6 +249,79 @@ const handler = createMcpHandler(
         }
       }
     )
+
+    server.tool(
+      'get_bookmark',
+      'Get full details for a single bookmark by ID. Returns all fields including tweet content, categories, and media info.',
+      {
+        id: z.string().uuid().describe('The bookmark UUID'),
+      },
+      async ({ id }) => {
+        const [bookmark] = await db
+          .select()
+          .from(bookmarks)
+          .where(eq(bookmarks.id, id))
+          .limit(1)
+
+        if (!bookmark) {
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Bookmark not found' }) }],
+          }
+        }
+
+        const junctions = await db
+          .select({ categoryId: bookmarkCategories.categoryId })
+          .from(bookmarkCategories)
+          .where(eq(bookmarkCategories.bookmarkId, id))
+
+        const catIds = junctions.map(j => j.categoryId)
+        let bookmarkCategs: Array<{ main: string; sub: string | null }> = []
+
+        if (catIds.length > 0) {
+          const cats = await db
+            .select()
+            .from(categories)
+            .where(inArray(categories.id, catIds))
+
+          const catById = Object.fromEntries(cats.map(c => [c.id, c]))
+
+          for (const cat of cats) {
+            if (cat.parentId) {
+              const parent = catById[cat.parentId]
+              bookmarkCategs.push({ main: parent?.name || 'Unknown', sub: cat.name })
+            } else {
+              const hasSub = bookmarkCategs.some(c => c.main === cat.name)
+              if (!hasSub) {
+                bookmarkCategs.push({ main: cat.name, sub: null })
+              }
+            }
+          }
+        }
+
+        const urlRegex = /https?:\/\/[^\s)>\]]+/g
+        const contentUrls = bookmark.content?.match(urlRegex) || []
+        const meaningfulUrls = contentUrls.filter(u => !u.includes('t.co/'))
+
+        const result = {
+          id: bookmark.id,
+          url: bookmark.url,
+          title: bookmark.title,
+          content: bookmark.content,
+          isTweet: bookmark.isTweet,
+          hasMedia: bookmark.hasMedia,
+          domain: bookmark.domain,
+          notes: bookmark.notes,
+          ogImage: bookmark.ogImage,
+          addDate: bookmark.addDate,
+          categories: bookmarkCategs,
+          urlsInContent: meaningfulUrls,
+        }
+
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+        }
+      }
+    )
   },
   {},
   {
