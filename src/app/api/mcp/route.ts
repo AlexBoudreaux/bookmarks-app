@@ -112,8 +112,8 @@ const handler = createMcpHandler(
         isTweet: z.boolean().optional().describe('Filter to tweets only (true) or non-tweets only (false)'),
         hasMedia: z.boolean().optional().describe('Filter to bookmarks with media (images/video)'),
         domain: z.string().optional().describe('Filter by domain (e.g., "github.com")'),
-        limit: z.number().int().min(1).max(100).default(50).describe('Max results to return (default 50, max 100)'),
-        offset: z.number().int().min(0).default(0).describe('Offset for pagination'),
+        limit: z.coerce.number().int().min(1).max(100).default(50).describe('Max results to return (default 50, max 100)'),
+        offset: z.coerce.number().int().min(0).default(0).describe('Offset for pagination'),
       },
       async ({ query, categoryId, isTweet, hasMedia, domain, limit, offset }) => {
         const conditions: ReturnType<typeof eq>[] = [
@@ -243,8 +243,8 @@ const handler = createMcpHandler(
       {
         categoryId: z.string().uuid().describe('Category ID (main or subcategory)'),
         isTweet: z.boolean().optional().describe('Filter to tweets only (true) or non-tweets only (false)'),
-        limit: z.number().int().min(1).max(100).default(50).describe('Max results (default 50, max 100)'),
-        offset: z.number().int().min(0).default(0).describe('Offset for pagination'),
+        limit: z.coerce.number().int().min(1).max(100).default(50).describe('Max results (default 50, max 100)'),
+        offset: z.coerce.number().int().min(0).default(0).describe('Offset for pagination'),
       },
       async ({ categoryId, isTweet, limit, offset }) => {
         const categoryAndChildren = await db
