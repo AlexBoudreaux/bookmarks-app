@@ -6,7 +6,9 @@ import { cn } from '@/lib/utils'
 import { TweetCard } from './tweet-card'
 import { BrowseLinkCard } from './browse-link-card'
 import { MasonryGrid } from './masonry-grid'
+import { SelectionBar } from './selection-bar'
 import { useDebounce } from '@/hooks/use-debounce'
+import { formatBookmarksForCopy } from '@/lib/format-bookmarks-for-copy'
 
 const ITEMS_PER_PAGE = 48
 const SEARCH_DEBOUNCE_MS = 300
@@ -28,6 +30,7 @@ interface BookmarkData {
   id: string
   url: string
   title: string | null
+  content: string | null
   isTweet: boolean | null
   isCategorized: boolean | null
   domain: string | null
@@ -55,6 +58,26 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
   const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE)
   const [searchResults, setSearchResults] = useState<BookmarkData[] | null>(null)
   const [isSearching, setIsSearching] = useState(false)
+
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [copied, setCopied] = useState(false)
+
+  const toggleSelection = useCallback((bookmarkId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(bookmarkId)) {
+        next.delete(bookmarkId)
+      } else {
+        next.add(bookmarkId)
+      }
+      return next
+    })
+  }, [])
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set())
+  }, [])
 
   // Filter states
   const [sortOption, setSortOption] = useState<SortOption>('newest')
@@ -257,6 +280,28 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
 
   const hasMore = displayCount < filteredBookmarks.length
 
+  const selectAllVisible = useCallback(() => {
+    setSelectedIds(new Set(displayedBookmarks.map(b => b.id)))
+  }, [displayedBookmarks])
+
+  // Clear selection when filters change
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [selectedCategoryId, debouncedSearchQuery, sortOption, typeFilter, selectedDomains, hasNotesFilter])
+
+  // Escape key clears selection
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (e.key === 'Escape' && selectedIds.size > 0) {
+        e.preventDefault()
+        clearSelection()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedIds.size, clearSelection])
+
   // Derive a reset key from all active filters so masonry clears on filter changes
   const filterResetKey = `${selectedCategoryId}-${typeFilter}-${Array.from(selectedDomains).sort().join(',')}-${hasNotesFilter}-${sortOption}-${debouncedSearchQuery}`
 
@@ -364,6 +409,42 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
       return next
     })
   }
+
+  const handleCopySelection = useCallback(async () => {
+    const selectedBookmarks = bookmarks
+      .filter(b => selectedIds.has(b.id))
+      .map(b => {
+        const catIds = bookmarkCategories
+          .filter(bc => bc.bookmarkId === b.id)
+          .map(bc => bc.categoryId)
+
+        const bookmarkCats = catIds.map(catId => {
+          const cat = categories.find(c => c.id === catId)
+          if (!cat) return null
+          if (cat.parentId) {
+            const parent = categories.find(c => c.id === cat.parentId)
+            return { main: parent?.name || 'Unknown', sub: cat.name }
+          }
+          return { main: cat.name, sub: null }
+        }).filter((c): c is { main: string; sub: string | null } => c !== null)
+
+        return {
+          url: b.url,
+          title: b.title,
+          content: b.content,
+          isTweet: b.isTweet,
+          domain: b.domain,
+          addDate: b.addDate,
+          categories: bookmarkCats,
+        }
+      })
+
+    const text = formatBookmarksForCopy(selectedBookmarks)
+    await navigator.clipboard.writeText(text)
+
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }, [selectedIds, bookmarks, bookmarkCategories, categories])
 
   const handleCategoryClick = (categoryId: string | null) => {
     handleCategoryClickWithReset(categoryId)
@@ -743,11 +824,37 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
               ) : undefined}
               renderItem={(bookmark) =>
                 bookmark.isTweet ? (
-                  <article>
+                  <article
+                    onClick={(e) => {
+                      const target = e.target as HTMLElement
+                      if (target.closest('a')) return
+                      if (e.metaKey || e.ctrlKey) {
+                        e.preventDefault()
+                        toggleSelection(bookmark.id)
+                      }
+                    }}
+                    className={cn(
+                      'rounded-lg transition-all duration-200',
+                      selectedIds.has(bookmark.id) && 'ring-2 ring-emerald-500/70 ring-offset-1 ring-offset-zinc-950'
+                    )}
+                  >
                     <TweetCard url={bookmark.url} title={bookmark.title} />
                   </article>
                 ) : (
-                  <article className="group relative rounded-lg border border-zinc-800/50 bg-zinc-900/30 hover:bg-zinc-800/30 hover:border-zinc-700/50 transition-all overflow-hidden">
+                  <article
+                    onClick={(e) => {
+                      const target = e.target as HTMLElement
+                      if (target.closest('a')) return
+                      if (e.metaKey || e.ctrlKey) {
+                        e.preventDefault()
+                        toggleSelection(bookmark.id)
+                      }
+                    }}
+                    className={cn(
+                      'group relative rounded-lg border border-zinc-800/50 bg-zinc-900/30 hover:bg-zinc-800/30 hover:border-zinc-700/50 transition-all overflow-hidden',
+                      selectedIds.has(bookmark.id) && 'ring-2 ring-emerald-500/70 ring-offset-1 ring-offset-zinc-950 border-emerald-500/30'
+                    )}
+                  >
                     <BrowseLinkCard
                       url={bookmark.url}
                       title={bookmark.title}
@@ -762,6 +869,14 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
           )}
         </div>
       </div>
+
+      <SelectionBar
+        count={selectedIds.size}
+        copied={copied}
+        onCopy={handleCopySelection}
+        onSelectAll={selectAllVisible}
+        onClear={clearSelection}
+      />
     </div>
   )
 }
