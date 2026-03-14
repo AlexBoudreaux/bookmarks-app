@@ -10,6 +10,7 @@ export interface SearchBookmarkResult {
   id: string
   url: string
   title: string | null
+  content: string | null
   isTweet: boolean | null
   isCategorized: boolean | null
   domain: string | null
@@ -58,6 +59,7 @@ export async function searchBookmarks(
       id: bookmarks.id,
       url: bookmarks.url,
       title: bookmarks.title,
+      content: bookmarks.content,
       isTweet: bookmarks.isTweet,
       isCategorized: bookmarks.isCategorized,
       domain: bookmarks.domain,
