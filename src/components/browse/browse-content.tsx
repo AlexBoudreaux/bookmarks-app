@@ -207,7 +207,25 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
     // Start with either search results or all bookmarks
     let result: BookmarkData[]
 
-    if (searchResults !== null) {
+    if (searchResults !== null && selectedCategoryId !== null) {
+      // Search within selected category: intersect search results with category bookmarks
+      const selectedCategory = categories.find(c => c.id === selectedCategoryId)
+      const isMainCategory = selectedCategory?.parentId === null
+
+      let bookmarkIds: Set<string>
+      if (isMainCategory) {
+        const subcats = categories.filter(c => c.parentId === selectedCategoryId)
+        const allCategoryIds = [selectedCategoryId, ...subcats.map(s => s.id)]
+        bookmarkIds = new Set<string>()
+        for (const catId of allCategoryIds) {
+          const bms = categoryToBookmarks.get(catId)
+          if (bms) for (const bmId of bms) bookmarkIds.add(bmId)
+        }
+      } else {
+        bookmarkIds = categoryToBookmarks.get(selectedCategoryId) || new Set()
+      }
+      result = searchResults.filter(b => bookmarkIds.has(b.id))
+    } else if (searchResults !== null) {
       result = searchResults
     } else if (selectedCategoryId === null) {
       result = bookmarks
@@ -450,6 +468,19 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
     handleCategoryClickWithReset(categoryId)
   }
 
+  // Category pill in search bar: show when searching within a category
+  const showCategoryPill = searchQuery.trim().length > 0 && selectedCategoryId !== null
+  const categoryPillLabel = useMemo(() => {
+    if (!selectedCategoryId) return ''
+    const cat = categories.find(c => c.id === selectedCategoryId)
+    if (!cat) return ''
+    if (cat.parentId !== null) {
+      const parent = categories.find(c => c.id === cat.parentId)
+      return parent ? `${parent.name} > ${cat.name}` : cat.name
+    }
+    return cat.name
+  }, [selectedCategoryId, categories])
+
   return (
     <div className="flex h-[calc(100vh-3.5rem)]">
       {/* Sidebar */}
@@ -596,8 +627,22 @@ export function BrowseContent({ categories, bookmarks, bookmarkCategories }: Bro
               placeholder="Search bookmarks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-10 py-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-colors"
+              className={cn(
+                'w-full pl-10 py-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-colors',
+                showCategoryPill ? 'pr-48' : 'pr-10'
+              )}
             />
+            {showCategoryPill && (
+              <span className="absolute right-10 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                {categoryPillLabel}
+                <button
+                  onClick={() => setSelectedCategoryId(null)}
+                  className="hover:text-emerald-300 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
             {isSearching && (
               <div data-testid="search-loading" className="absolute right-3 top-1/2 -translate-y-1/2">
                 <Loader2 className="w-4 h-4 text-zinc-500 animate-spin" />
