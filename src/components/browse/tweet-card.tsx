@@ -16,7 +16,7 @@ function TweetEmbed({ tweetId, url, title }: { tweetId: string; url: string; tit
     <div className="tweet-card-embed">
       <TweetErrorBoundary fallback={<TweetFallback url={url} title={title} />}>
         <Suspense fallback={<TweetSkeleton />}>
-          <Tweet id={tweetId} />
+          <Tweet id={tweetId} apiUrl={`/api/tweet/${tweetId}`} />
         </Suspense>
       </TweetErrorBoundary>
     </div>
