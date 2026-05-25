@@ -1,21 +1,24 @@
 'use client'
 
-import { Tweet, TweetNotFound, TweetSkeleton } from 'react-tweet'
+import { Tweet, TweetSkeleton } from 'react-tweet'
 import { getTweetId } from '@/lib/tweet-utils'
 import { ExternalLink, Twitter } from 'lucide-react'
 import { Suspense } from 'react'
+import { TweetErrorBoundary } from './tweet-error-boundary'
 
 interface TweetCardProps {
   url: string
   title: string | null
 }
 
-function TweetEmbed({ tweetId, url }: { tweetId: string; url: string }) {
+function TweetEmbed({ tweetId, url, title }: { tweetId: string; url: string; title: string | null }) {
   return (
     <div className="tweet-card-embed">
-      <Suspense fallback={<TweetSkeleton />}>
-        <Tweet id={tweetId} />
-      </Suspense>
+      <TweetErrorBoundary fallback={<TweetFallback url={url} title={title} />}>
+        <Suspense fallback={<TweetSkeleton />}>
+          <Tweet id={tweetId} />
+        </Suspense>
+      </TweetErrorBoundary>
     </div>
   )
 }
@@ -54,7 +57,7 @@ export function TweetCard({ url, title }: TweetCardProps) {
 
   return (
     <div className="tweet-card overflow-hidden">
-      <TweetEmbed tweetId={tweetId} url={url} />
+      <TweetEmbed tweetId={tweetId} url={url} title={title} />
     </div>
   )
 }
